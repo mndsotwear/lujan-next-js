@@ -1,0 +1,25 @@
+# این فایل را هنگام ساخت مخزن گیت به .github/workflows/ci.yml (در ریشه پروژه) منتقل کنید.
+# بررسی خودکار در هر Pull Request (بخش ۱۲-۵)
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+defaults:
+  run:
+    working-directory: web
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

@@ -1,0 +1,767 @@
+// مدل داده — بر اساس docs/02-architecture/02-data-model.md (بخش ۱۴ SRS) و D-001 (Prisma)
+// قراردادها: قیمت‌ها Int و به تومان (CLAUDE.md)؛ شناسه‌ها cuid؛ زمان‌ها UTC (نمایش شمسی در رابط).
+// جدول‌های فاز ۲ (ProductEmbedding، KnowledgeChunk، ChatSession/ChatMessage، CoPurchaseStat) در M2 با pgvector اضافه می‌شوند.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── کاربر و سازمان ─────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  OPERATOR
+  WAREHOUSE
+  CONTENT_MANAGER
+  ADMIN
+}
+
+enum CustomerType {
+  B2C
+  B2B
+}
+
+enum B2BStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id             String        @id @default(cuid())
+  mobile         String        @unique // ارقام لاتین، مثل 09123456789 (FR-ACC-01)
+  email          String?       @unique
+  name           String?
+  role           UserRole      @default(CUSTOMER)
+  customerType   CustomerType  @default(B2C)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  marketingSms   Boolean       @default(false) // رضایت ارتباطات (FR-ACC-06)
+  marketingEmail Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime? // حذف حساب بنا به درخواست (FR-ACC-06)
+  /// اطلاعات فاکتور: { companyName, nationalId, economicCode } (FR-ACC-02)
+  invoiceInfo    Json?
+  refundIban     String? // شبای بازپرداخت، رمزنگاری‌شده (D-041، NFR-SEC-06)
+
+  // ورود کارکنان به پنل (NFR-SEC-04، D-035) — برای مشتری خالی است
+  passwordHash    String? // scrypt
+  totpSecret      String? // رمزنگاری‌شده با AES-GCM و کلید مشتق از AUTH_SECRET (NFR-SEC-06)
+  totpEnabledAt   DateTime?
+  totpLastCounter Int? // جلوگیری از استفاده‌ی دوباره از یک کد
+  recoveryCodes   String[]  @default([]) // هش کدهای پشتیبان یک‌بارمصرف
+  failedLogins    Int       @default(0)
+  lockedUntil     DateTime?
+  staffDisabledAt DateTime? // کارمند غیرفعال‌شده
+
+  addresses     Address[]
+  adminSessions AdminSession[]
+  carts         Cart[]
+  orders        Order[]
+  reviews       Review[]
+  questions     Question[]
+  wishlist      WishlistItem[]
+  notifications StockNotification[]
+  auditLogs     AuditLog[]
+  sessions      Session[]
+}
+
+model Organization {
+  id           String    @id @default(cuid()) // حساب عمده آرایشگاه (FR-B2B-01)
+  name         String // نام صنف/آرایشگاه
+  nationalId   String? // کد ملی یا شناسه ملی
+  economicCode String? // کد اقتصادی
+  licenseUrl   String? // تصویر پروانه کسب
+  status       B2BStatus @default(PENDING)
+  priceLevel   Int       @default(1) // سطح قیمت (FR-B2B-02)
+  creditLimit  Int       @default(0) // فاز ۳ (FR-B2B-08)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  users        User[]
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String? // «آرایشگاه»، «خانه»
+  province   String
+  city       String
+  postalCode String // ۱۰ رقم لاتین (FR-CHK-03)
+  line       String
+  recipient  String
+  phone      String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ───────────────────────── کاتالوگ ─────────────────────────
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Category {
+  id         String     @id @default(cuid())
+  parentId   String?
+  parent     Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children   Category[] @relation("CategoryTree")
+  name       String
+  slug       String     @unique
+  icon       String? // نام آیکون در طراحی (clipper, scissors, ...)
+  sortOrder  Int        @default(0)
+  /// شِمای مشخصات فنی دسته؛ فیلترها و دستیار از آن استفاده می‌کنند (بخش ۴-۱)
+  /// [{ key, label, type: "enum"|"number"|"boolean", unit?, options?, filterable }]
+  specSchema Json       @default("[]")
+  products   Product[]
+}
+
+model Brand {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  logoUrl  String?
+  products Product[]
+}
+
+model Product {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique
+  categoryId     String
+  category       Category      @relation(fields: [categoryId], references: [id])
+  brandId        String
+  brand          Brand         @relation(fields: [brandId], references: [id])
+  summary        String? // یک خط برای کارت محصول
+  description    String? // متن معرفی
+  /// مقادیر مشخصات بر اساس specSchema دسته: { motorType: "rotary", runtimeMin: 120, ... }
+  specs          Json          @default("{}")
+  warrantyMonths Int? // FR-CAT-11
+  warrantyNote   String?
+  tags           String[] // «جدید»، «پرفروش»، «گارانتی‌دار» (FR-CAT-10)
+  status         ProductStatus @default(DRAFT)
+  seoTitle       String?
+  seoDescription String?
+  ratingAvg      Float         @default(0) // محاسبه‌شده از نظرات تأییدشده
+  ratingCount    Int           @default(0)
+  soldCount      Int           @default(0) // برای مرتب‌سازی «پرفروش‌ترین»
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  images        ProductImage[]
+  variants      Variant[]
+  reviews       Review[]
+  questions     Question[]
+  wishlistedBy  WishlistItem[]
+  rulesFrom     RecommendationRule[] @relation("RuleSource")
+  rulesTo       RecommendationRule[] @relation("RuleTarget")
+
+  @@index([categoryId, status])
+  @@index([brandId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String // متن جایگزین الزامی (WCAG، بخش ۱۲-۴)
+  sortOrder Int     @default(0)
+  isVideo   Boolean @default(false)
+
+  @@index([productId])
+}
+
+model Variant {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku         String   @unique
+  /// ویژگی‌های این نوع: { color: "مشکی مات" }
+  attributes  Json     @default("{}")
+  price       Int // تومان
+  salePrice   Int? // قیمت تخفیفی؛ اگر خالی، بدون تخفیف
+  costPrice   Int? // قیمت خرید، فقط مدیر کل (D-050)
+  weightGrams Int      @default(0) // برای محاسبه ارسال (FR-SHP-02)
+  lengthCm    Int? // ابعاد بسته برای وزن حجمی (D-029)
+  widthCm     Int?
+  heightCm    Int?
+  minOrderQty Int      @default(1) // FR-B2B-06
+  packSize    Int      @default(1) // ضریب بسته‌بندی
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory     Inventory?
+  priceTiers    PriceTier[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  movements     StockMovement[]
+  notifications StockNotification[]
+
+  @@index([productId])
+}
+
+model PriceTier {
+  id         String  @id @default(cuid()) // قیمت سطحی عمده (FR-B2B-02)
+  variantId  String
+  variant    Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  priceLevel Int // ۱ = عمده پایه
+  minQty     Int     @default(1)
+  price      Int
+
+  @@unique([variantId, priceLevel, minQty])
+}
+
+// ───────────────────────── موجودی ─────────────────────────
+
+enum StockSource {
+  MANUAL
+  POS_SYNC // همگام‌سازی با نرم‌افزار فروشگاه (FR-INV-02، فاز ۲)
+}
+
+model Inventory {
+  id                String      @id @default(cuid())
+  variantId         String      @unique
+  variant           Variant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  onHand            Int         @default(0) // موجودی فیزیکی
+  reserved          Int         @default(0) // رزرو موقت هنگام پرداخت (FR-CHK-08)
+  safetyStock       Int         @default(0) // ذخیره اطمینان (بخش ۹)
+  lowStockThreshold Int         @default(3) // «کم‌مانده» و هشدار (FR-CAT-04، FR-INV-04)
+  source            StockSource @default(MANUAL)
+  lowStockNotifiedAt DateTime? // پیامک کم‌موجودی فرستاده شد؛ با بالا رفتن موجودی پاک می‌شود (D-043)
+  updatedAt         DateTime    @updatedAt
+  // قابل‌فروش = onHand - reserved - safetyStock (در کد محاسبه می‌شود)
+}
+
+enum StockReason {
+  PURCHASE // ورود کالا
+  SALE_ONLINE
+  SALE_STORE
+  RETURN
+  ADJUSTMENT // اصلاح دستی
+  DAMAGE
+}
+
+model StockMovement {
+  id        String      @id @default(cuid()) // FR-INV-03: ثبت ورود و خروج با دلیل و کاربر
+  variantId String
+  variant   Variant     @relation(fields: [variantId], references: [id])
+  delta     Int // مثبت = ورود، منفی = خروج
+  reason    StockReason
+  note      String?
+  actorId   String?
+  orderId   String?
+  createdAt DateTime    @default(now())
+
+  @@index([variantId, createdAt])
+}
+
+model StockNotification {
+  id         String    @id @default(cuid()) // «موجود شد خبرم کن» (FR-CAT-04)
+  variantId  String
+  variant    Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  mobile     String
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([variantId, mobile])
+}
+
+// ───────────────────────── سبد و پیشنهاد ─────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id])
+  sessionId String?    @unique // سبد مهمان (FR-CART-02)
+  couponId  String?
+  coupon    Coupon?    @relation(fields: [couponId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+
+  @@index([userId])
+}
+
+model CartItem {
+  id           String   @id @default(cuid())
+  cartId       String
+  cart         Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId    String
+  variant      Variant  @relation(fields: [variantId], references: [id])
+  quantity     Int
+  priceAtAdd   Int // «قیمت لحظه» برای پیام تغییر قیمت (FR-CART-03)
+  savedForLater Boolean @default(false) // FR-CART-07
+  createdAt    DateTime @default(now())
+
+  @@unique([cartId, variantId])
+}
+
+enum RecommendationType {
+  COMPLEMENT // «همیشه با X پیشنهاد بده»
+  ALTERNATIVE // جایگزین ارزان‌تر/بهتر (FR-REC-07)
+  EXCLUDE // «هرگز پیشنهاد نده» (FR-REC-09)
+}
+
+model RecommendationRule {
+  id              String             @id @default(cuid())
+  sourceProductId String
+  sourceProduct   Product            @relation("RuleSource", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  targetProductId String
+  targetProduct   Product            @relation("RuleTarget", fields: [targetProductId], references: [id], onDelete: Cascade)
+  type            RecommendationType @default(COMPLEMENT)
+  reasonLabel     String? // برچسب علت روی کارت (FR-REC-04)
+  priority        Int                @default(0)
+  isActive        Boolean            @default(true)
+
+  @@unique([sourceProductId, targetProductId, type])
+}
+
+model WishlistItem {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, productId])
+}
+
+// ───────────────────────── تخفیف ─────────────────────────
+
+enum CouponType {
+  PERCENT
+  FIXED
+  FREE_SHIPPING
+}
+
+model Coupon {
+  id          String     @id @default(cuid())
+  code        String     @unique // همیشه با حروف بزرگ ذخیره می‌شود
+  type        CouponType
+  value       Int // درصد یا تومان
+  minSubtotal Int        @default(0)
+  maxDiscount Int? // سقف تخفیف درصدی
+  usageLimit  Int?
+  perCustomerLimit Int?  @default(1) // هر مشتری چند بار؛ null = بدون محدودیت (D-047)
+  usedCount   Int        @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isActive    Boolean    @default(true)
+  carts       Cart[]
+  orders      Order[]
+}
+
+// ───────────────────────── سفارش، پرداخت، ارسال ─────────────────────────
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  READY_FOR_PICKUP
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentMethod {
+  ONLINE
+  COD // پرداخت در محل (FR-CHK-05)
+}
+
+enum ShippingMethod {
+  PICKUP // تحویل حضوری (FR-INV-05)
+  COURIER // پیک درون‌شهری
+  TIPAX
+  POST
+}
+
+model Order {
+  id              String         @id @default(cuid())
+  number          Int            @unique @default(autoincrement()) // شماره سفارش برای مشتری
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  status          OrderStatus    @default(PENDING_PAYMENT)
+  subtotal        Int
+  discountTotal   Int            @default(0)
+  shippingCost    Int            @default(0)
+  taxTotal        Int            @default(0)
+  grandTotal      Int
+  couponId        String?
+  coupon          Coupon?        @relation(fields: [couponId], references: [id])
+  paymentMethod   PaymentMethod
+  shippingMethod  ShippingMethod
+  /// تصویر آدرس در لحظه سفارش (تغییر بعدی آدرس روی سفارش اثر ندارد)
+  shippingAddress Json?
+  pickupCode      String? // کد تحویل حضوری
+  officialInvoice Boolean        @default(false) // فاکتور رسمی (FR-CHK-09)
+  invoiceInfo     Json?
+  internalNote    String? // یادداشت داخلی اپراتور (FR-ADM-04)
+  reservedUntil   DateTime? // پایان رزرو موجودی، ۳۰ دقیقه (FR-CHK-07)
+  deliveredAt     DateTime? // شروع مهلت مرجوعی (FR-RET-01، D-030)
+  // درخواست لغو اپراتور که منتظر تأیید مدیر کل است (D-039)
+  cancelRequestedAt DateTime?
+  cancelRequestedBy String?
+  cancelReason      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  items     OrderItem[]
+  payments  Payment[]
+  shipments Shipment[]
+  returns   ReturnRequest[]
+  refunds   Refund[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model OrderItem {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId   String
+  variant     Variant      @relation(fields: [variantId], references: [id])
+  productName String // تصویر نام و SKU در لحظه خرید
+  sku         String
+  unitPrice   Int
+  unitCost    Int? // قیمت خرید لحظه‌ی فروش برای گزارش سود (D-050)
+  quantity    Int
+  returnItems ReturnItem[]
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id          String        @id @default(cuid()) // هیچ اطلاعات کارتی ذخیره نمی‌شود (NFR-SEC-03)
+  orderId     String
+  order       Order         @relation(fields: [orderId], references: [id])
+  gateway     String // zarinpal، ...
+  amount      Int
+  status      PaymentStatus @default(PENDING)
+  authority   String? @unique // شناسه تراکنش درگاه
+  refId       String? // شماره مرجع بانک
+  createdAt   DateTime      @default(now())
+  verifiedAt  DateTime?
+
+  @@index([orderId])
+}
+
+enum ShipmentStatus {
+  PENDING
+  HANDED_OVER
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+model Shipment {
+  id           String         @id @default(cuid())
+  orderId      String
+  order        Order          @relation(fields: [orderId], references: [id])
+  carrier      ShippingMethod
+  trackingCode String?
+  status       ShipmentStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  RECEIVED
+  REFUNDED
+  EXCHANGED
+}
+
+enum ReturnReason {
+  DEFECTIVE // معیوب
+  WRONG_ITEM // اشتباه ارسال‌شده
+  DAMAGED // آسیب در حمل
+  NOT_AS_DESCRIBED // مغایر با توضیحات
+  CHANGED_MIND // پشیمانی
+}
+
+enum ReturnType {
+  REFUND
+  EXCHANGE
+}
+
+model ReturnRequest {
+  id             String       @id @default(cuid()) // FR-RET-01، FR-RET-02
+  orderId        String
+  order          Order        @relation(fields: [orderId], references: [id])
+  reasonCode     ReturnReason
+  type           ReturnType
+  reason         String // توضیح مشتری
+  imageUrls      String[] // نام فایل در storage/returns (D-033)
+  status         ReturnStatus @default(REQUESTED)
+  resolutionNote String? // پاسخ اپراتور به مشتری (M1.9)
+  restocked      Boolean? // هنگام دریافت: سالم و به موجودی برگشت یا نه (D-039)
+  refundIban     String? // شبای واریز همین درخواست، رمزنگاری‌شده (D-041)
+  refunds        Refund[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  items          ReturnItem[]
+
+  @@index([orderId])
+}
+
+/// بازپرداخت دستی ثبت‌شده توسط اپراتور (D-038) — سایت پول جابه‌جا نمی‌کند
+model Refund {
+  id        String         @id @default(cuid())
+  orderId   String
+  order     Order          @relation(fields: [orderId], references: [id])
+  returnId  String?
+  returnReq ReturnRequest? @relation(fields: [returnId], references: [id])
+  amount    Int // تومان
+  reference String // شماره‌ی پیگیری بانک یا درگاه
+  actorId   String?
+  createdAt DateTime       @default(now())
+
+  @@index([orderId])
+}
+
+model ReturnItem {
+  returnId    String
+  returnReq   ReturnRequest @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItemId String
+  orderItem   OrderItem     @relation(fields: [orderItemId], references: [id])
+  quantity    Int
+
+  @@id([returnId, orderItemId])
+}
+
+// ───────────────────────── نظر و پرسش ─────────────────────────
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Review {
+  id         String           @id @default(cuid()) // فقط خریداران واقعی (FR-CAT-06)
+  productId  String
+  product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  rating     Int // ۱ تا ۵
+  body       String?
+  isVerified Boolean          @default(false) // برچسب «خریدار»
+  status     ModerationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+
+  @@unique([productId, userId])
+}
+
+model Question {
+  id         String           @id @default(cuid())
+  productId  String
+  product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?            @relation(fields: [userId], references: [id])
+  body       String
+  answer     String?
+  answeredAt DateTime?
+  status     ModerationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+
+  @@index([productId])
+}
+
+// ───────────────────────── حسابرسی ─────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid()) // NFR-SEC-07، FR-ADM-10
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String // مثل "product.update"
+  entity    String
+  entityId  String?
+  diff      Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ───────────────────────── جستجو (M1.4) ─────────────────────────
+
+model SearchSynonym {
+  id        String   @id @default(cuid()) // گروه مترادف قابل مدیریت از پنل (FR-SRCH-03)
+  terms     String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SearchQueryLog {
+  id          String   @id @default(cuid()) // ثبت جستجوها؛ بی‌نتیجه‌ها در گزارش پنل (FR-SRCH-05)
+  query       String // یکسان‌شده
+  rawQuery    String
+  resultCount Int
+  createdAt   DateTime @default(now())
+
+  @@index([resultCount, createdAt])
+  @@index([query])
+}
+
+// ───────────────────────── ورود و نشست (M1.6، D-021) ─────────────────────────
+
+model OtpCode {
+  id         String    @id @default(cuid()) // کد یکبارمصرف ورود (FR-ACC-01)؛ فقط هش ذخیره می‌شود
+  mobile     String
+  codeHash   String
+  attempts   Int       @default(0)
+  ip         String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([mobile, createdAt])
+  @@index([ip, createdAt])
+}
+
+model Session {
+  id         String   @id @default(cuid()) // نشست ورود؛ توکن کوکی فقط به‌صورت هش ذخیره می‌شود
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AdminSession {
+  id         String   @id @default(cuid()) // نشست پنل مدیریت، جدا از نشست مشتری (D-035)
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ip         String?
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// بنر صفحه‌ی اصلی با بازه‌ی نمایش (D-048)
+model Banner {
+  id           String    @id @default(cuid())
+  title        String
+  subtitle     String?
+  link         String? // نشانی داخلی مثل /categories/clippers
+  imageDesktop String // /media/banners/...
+  imageMobile  String?
+  alt          String
+  startsAt     DateTime?
+  endsAt       DateTime?
+  isActive     Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+/// صفحه‌های ثابت: درباره ما، تماس و ساعات کاری، قوانین (D-036) — متن با قالب پایه (D-044)
+model Page {
+  slug      String   @id
+  title     String
+  body      String
+  updatedAt DateTime @updatedAt
+}
+
+// ───────── M1.10b: بلاگ، صفحه‌ی فرود، خبرنامه (D-053، D-055) ─────────
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+/// مقاله‌ی بلاگ و راهنمای خرید (FR-SEO-04، D-053) — متن با قالب پایه (D-044)
+model Post {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  title          String
+  excerpt        String? // یک-دو جمله برای فهرست و توضیح متا
+  body           String
+  section        String // guide | care | news — ثابت در کد (modules/blog/rules.ts)
+  tags           String[]
+  /// محصولات مرتبط به ترتیب نمایش
+  productIds     String[]
+  coverImage     String? // /media/content/...
+  coverAlt       String?
+  status         PostStatus @default(DRAFT)
+  publishedAt    DateTime?
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+/// صفحه‌ی فرود کمپین (FR-SEO-05) — نشانی /offers/<slug>
+model Landing {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  intro          String?
+  productIds     String[]
+  couponCode     String? // فقط نمایش؛ اعتبار کد در سبد سنجیده می‌شود
+  coverImage     String?
+  coverAlt       String?
+  isActive       Boolean   @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  seoDescription String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+enum SubscriberChannel {
+  SMS
+  EMAIL
+}
+
+/// عضو خبرنامه با رضایت صریح (FR-MKT-01، D-055) — یک ردیف برای هر کانال و نشانی
+model Subscriber {
+  id             String            @id @default(cuid())
+  channel        SubscriberChannel
+  /// موبایل به شکل 09xxxxxxxxx یا ایمیل با حروف کوچک
+  address        String
+  userId         String?
+  source         String // footer | account
+  consentAt      DateTime          @default(now())
+  unsubscribedAt DateTime?
+  /// برای پیوند لغو عضویت؛ قابل حدس نیست
+  token          String            @unique
+  createdAt      DateTime          @default(now())
+
+  @@unique([channel, address])
+  @@index([userId])
+}

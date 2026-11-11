@@ -1,0 +1,18 @@
+/** تصویر عمومی محصول (D-045) — نام تصادفی است، پس کش بلندمدت امن است */
+import { isSafeImageName } from "@/modules/returns";
+import { readProductImage } from "@/modules/catalog/server";
+
+const TYPES = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" } as const;
+
+export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const { name } = await params;
+  if (!isSafeImageName(name)) return new Response("Not found", { status: 404 });
+  const file = await readProductImage(name);
+  if (!file) return new Response("Not found", { status: 404 });
+  return new Response(new Uint8Array(file), {
+    headers: {
+      "Content-Type": TYPES[name.split(".").pop() as keyof typeof TYPES],
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+}

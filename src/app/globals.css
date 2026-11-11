@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+/*
+ * توکن‌های طراحی لوجان.
+ * فروشگاه: فقط تم لایت (آبی و سفید). پنل مدیریت: تم تیره‌ی «لیکوئید گلس» که با کلاس .admin-glass
+ * همین توکن‌ها را در محدوده‌ی خودش بازنویسی می‌کند — بنابراین کلاس‌های Tailwind مثل bg-surface و text-ink
+ * در هر دو بخش بدون تغییر کار می‌کنند. نام توکن copper یعنی «رنگ تأکید» (در لوجان آبی).
+ */
+:root {
+  color-scheme: light;
+  --c-bg: #f5f8fc;
+  --c-surface: #ffffff;
+  --c-surface-2: #eaf0f8;
+  --c-ink: #0f1b2d;
+  --c-ink-2: #3b4a60;
+  --c-steel: #5b6b82;
+  --c-line: #d9e2ee;
+  --c-copper: #1d5fd8;
+  --c-copper-ink: #ffffff;
+  --c-copper-soft: #e3edff;
+  --c-ok: #1f7a4d;
+  --c-warn: #8a5a00;
+  --c-bad: #b3362b;
+  --c-shadow: 0 24px 48px -24px rgba(15, 27, 45, 0.28);
+}
+
+/* ───────────── پنل مدیریت: لیکوئید گلس (تیره) ───────────── */
+.admin-glass {
+  color-scheme: dark;
+  --c-bg: #070b14;
+  --c-surface: rgba(255, 255, 255, 0.07);
+  --c-surface-2: rgba(255, 255, 255, 0.13);
+  --c-ink: #eef3fb;
+  --c-ink-2: #c3cde0;
+  --c-steel: #97a4bc;
+  --c-line: rgba(255, 255, 255, 0.17);
+  --c-copper: #7db0ff;
+  --c-copper-ink: #06101f;
+  --c-copper-soft: rgba(125, 176, 255, 0.18);
+  --c-ok: #74d9a6;
+  --c-warn: #f2c76e;
+  --c-bad: #ff8f82;
+  --c-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
+
+  position: relative;
+  color: var(--c-ink);
+  background:
+    radial-gradient(56rem 38rem at 88% -8%, rgba(70, 130, 255, 0.42), transparent 62%),
+    radial-gradient(46rem 36rem at -8% 22%, rgba(150, 90, 250, 0.3), transparent 62%),
+    radial-gradient(44rem 34rem at 62% 112%, rgba(20, 190, 170, 0.26), transparent 62%), #060912;
+  background-attachment: fixed;
+}
+/* پس‌زمینه‌ی کل صفحه هم تیره شود تا هنگام اسکرول لبه‌ی روشن دیده نشود */
+html:has(.admin-glass),
+body:has(.admin-glass) {
+  background: #060912;
+}
+
+/* شیشه: هر سطحی که از bg-surface یا bg-surface-2 استفاده می‌کند، تار و شفاف می‌شود */
+.admin-glass :is([class~="bg-surface"], [class~="bg-surface-2"]) {
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+}
+/* کارت‌ها و سربرگ: لبه‌ی نورانی بالا و سایه‌ی عمیق، مثل شیشه‌ی مایع */
+.admin-glass
+  :is(.rounded-card, .rounded-sheet, header, aside)[class~="bg-surface"]:not(
+    input,
+    select,
+    textarea
+  ) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 40px -18px rgba(0, 0, 0, 0.6);
+}
+.admin-glass :is(input, select, textarea) {
+  color: var(--c-ink);
+}
+.admin-glass ::placeholder {
+  color: var(--c-steel);
+}
+.admin-glass option {
+  background: #121a2b;
+  color: #eef3fb;
+}
+.admin-glass ::selection {
+  background: rgba(125, 176, 255, 0.35);
+}
+.admin-glass ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.admin-glass ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+/* اگر مرورگر blur ندارد، سطح‌ها کمی مات‌تر شوند تا خوانایی بماند */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .admin-glass {
+    --c-surface: rgba(24, 32, 52, 0.94);
+    --c-surface-2: rgba(40, 52, 80, 0.96);
+  }
+}
+/* چاپ فاکتور و برچسب از پنل: همیشه سفید */
+@media print {
+  .admin-glass {
+    color-scheme: light;
+    --c-bg: #ffffff;
+    --c-surface: #ffffff;
+    --c-surface-2: #f1f1f1;
+    --c-ink: #000000;
+    --c-ink-2: #222222;
+    --c-steel: #444444;
+    --c-line: #cccccc;
+    --c-copper: #000000;
+    background: #ffffff !important;
+  }
+  html:has(.admin-glass),
+  body:has(.admin-glass) {
+    background: #ffffff;
+  }
+  .admin-glass * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* نگاشت توکن‌ها به کلاس‌های Tailwind: bg-bg, text-ink, bg-copper, rounded-card, ... */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-steel: var(--c-steel);
+  --color-line: var(--c-line);
+  --color-copper: var(--c-copper);
+  --color-copper-ink: var(--c-copper-ink);
+  --color-copper-soft: var(--c-copper-soft);
+  --color-ok: var(--c-ok);
+  --color-warn: var(--c-warn);
+  --color-bad: var(--c-bad);
+
+  --font-sans: "Vazirmatn Variable", Tahoma, sans-serif;
+
+  /* مقیاس تایپ ۱٫۲۵ */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.563rem;
+  --text-2xl: 1.953rem;
+  --text-3xl: 2.441rem;
+  --text-4xl: 3.815rem;
+
+  /* گوشه‌های سلسله‌مراتبی */
+  --radius-chip: 999px;
+  --radius-ctl: 14px;
+  --radius-card: 20px;
+  --radius-sheet: 28px;
+
+  --shadow-sheet: var(--c-shadow);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font-sans);
+  line-height: 1.8;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-copper) 45%, transparent);
+  border-radius: var(--radius-ctl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* عنصر امضا: خط‌کش شانه راهنما */
+@utility ruler {
+  height: 14px;
+  opacity: 0.55;
+  background:
+    repeating-linear-gradient(to left, var(--c-steel) 0 1px, transparent 1px 8px) bottom / 100% 6px
+      no-repeat,
+    repeating-linear-gradient(to left, var(--c-ink) 0 1.5px, transparent 1.5px 40px) bottom / 100%
+      14px no-repeat;
+}
+
+/* چاپ فاکتور (FR-CHK-09): فقط محتوای فاکتور */
+@media print {
+  header.sticky,
+  footer,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+    padding: 0;
+  }
+  main {
+    max-width: none;
+    padding: 0;
+  }
+}
+
+/* ───── سایه و گوشه‌های لوجان ───── */
+@theme {
+  --shadow-card: 0 8px 28px -14px rgb(20 60 140 / 0.35);
+}

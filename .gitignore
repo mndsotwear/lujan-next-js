@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+playwright-report
+test-results
+.DS_Store
+storage
+backups
+
+e2e-report.json
+perf-report.json
+a11y-report.json
