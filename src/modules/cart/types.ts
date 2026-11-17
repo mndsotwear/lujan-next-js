@@ -9,6 +9,8 @@ export type CartLine = {
   name: string;
   variantLabel: string | null;
   icon: string;
+  /** عکس اول محصول برای سبد؛ خالی = آیکون دسته */
+  image?: string | null;
   unitPrice: number; // قیمت مؤثر فعلی (تخفیفی اگر باشد)
   oldUnitPrice: number | null; // قیمت پیش از تخفیف
   priceAtAdd: number;
@@ -59,6 +61,8 @@ export type CartTotals = {
   subtotal: number; // جمع با قیمت مؤثر
   itemSavings: number; // سود از تخفیف کالاها
   couponDiscount: number;
+  /** تخفیف بسته‌های ترکیبی «با هم ارزان‌تر» */
+  bundleDiscount: number;
   freeShipping: boolean;
   freeShippingGap: number; // مانده تا ارسال رایگان (۰ اگر آستانه نداریم)
   total: number; // قابل پرداخت بدون هزینه‌ی ارسال

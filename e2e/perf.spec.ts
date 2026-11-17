@@ -5,7 +5,12 @@
 import { expect, test } from "@playwright/test";
 import { writeFileSync } from "node:fs";
 
-const PAGES = ["/", "/categories/instant-coffee", "/products/tea-black-leaf-500", "/blog"];
+const PAGES = [
+  "/",
+  "/categories/instant-coffee",
+  encodeURI("/products/چای-سیلانی-ممتاز-المنیس-450-گرم"),
+  "/blog",
+];
 const results: Record<string, { lcp: number; cls: number; ttfb: number; transferKb: number }> = {};
 
 test.afterAll(() => writeFileSync("perf-report.json", JSON.stringify(results, null, 2)));

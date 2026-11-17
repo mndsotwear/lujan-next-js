@@ -13,6 +13,8 @@ export const STORE = {
   pricesIncludeVat: true,
   /** حداکثر پیشنهاد در پنل سبد (FR-REC-01) */
   maxRecommendations: 4,
+  /** تحویل حضوری نداریم (تصمیم مالک لوجان)؛ true کنید تا گزینه‌ی تحویل حضوری در پرداخت برگردد */
+  pickupEnabled: false as boolean,
   /** فروشگاه حضوری (D-025) */
   storeLocation: { province: "خوزستان", city: "آبادان" },
   /**

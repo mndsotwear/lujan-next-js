@@ -33,6 +33,8 @@ export async function listProductsAdmin(f: ProductFilters) {
       category: { select: { name: true } },
       brand: { select: { name: true } },
       _count: { select: { images: true } },
+      // عکس کوچک در فهرست محصولات پنل
+      images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
       variants: {
         select: {
           price: true,

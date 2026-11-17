@@ -1,5 +1,6 @@
 "use client";
 /** اطلاعات اصلی، معرفی، مشخصات و سئوی محصول (FR-ADM-01، D-044) */
+import { FLAVORS } from "@/modules/catalog/flavors";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { fa } from "@/content/fa";
@@ -22,6 +23,8 @@ export type ProductFormValues = {
   warrantyMonths: string;
   warrantyNote: string;
   tags: string;
+  /** طعم‌ها برای طعم‌یاب */
+  flavors?: string[];
   status: string;
   seoTitle: string;
   seoDescription: string;
@@ -183,6 +186,28 @@ export function ProductForm({
           <Input name="warrantyNote" label={t.fields.warrantyNote} value={val("warrantyNote")} />
           <Input name="tags" label={t.fields.tags} value={val("tags")} />
         </div>
+        <fieldset className="space-y-2">
+          <input type="hidden" name="flavorsField" value="1" />
+          <legend className="text-sm font-medium">{t.fields.flavors}</legend>
+          <div className="flex flex-wrap gap-2">
+            {FLAVORS.map((f) => (
+              <label
+                key={f.slug}
+                className="border-line has-[:checked]:border-copper has-[:checked]:bg-copper-soft flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  name="flavors"
+                  value={f.slug}
+                  defaultChecked={initial.flavors?.includes(f.slug)}
+                  className="accent-copper size-4"
+                />
+                {f.emoji} {f.label}
+              </label>
+            ))}
+          </div>
+          <small className="text-steel block text-xs">{t.flavorsHint}</small>
+        </fieldset>
         <div className="flex flex-col gap-1">
           <label htmlFor="p-status" className="text-sm font-medium">
             {t.fields.status}

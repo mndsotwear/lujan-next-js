@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BundleManager } from "@/components/admin/BundleManager";
 import { CouponManager } from "@/components/admin/CouponManager";
+import { DealManager } from "@/components/admin/DealManager";
+import { listBundlesAdmin, listDealsAdmin } from "@/modules/promotions/server";
 import { RuleManager } from "@/components/admin/RuleManager";
 import { SynonymManager } from "@/components/admin/SynonymManager";
 import { fa } from "@/content/fa";
@@ -25,13 +28,16 @@ export default async function MarketingPage({
 }) {
   await requireStaff("marketing.manage");
   const { tab: raw } = await searchParams;
-  const tab = raw === "rules" || raw === "synonyms" || raw === "newsletter" ? raw : "coupons";
+  const TABS = ["coupons", "deals", "bundles", "rules", "synonyms", "newsletter"] as const;
+  const tab = (TABS as readonly string[]).includes(raw ?? "")
+    ? (raw as (typeof TABS)[number])
+    : "coupons";
   const t = fa.admin.marketing;
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">{t.title}</h1>
       <nav className="border-line flex gap-1 border-b">
-        {(["coupons", "rules", "synonyms", "newsletter"] as const).map((k) => (
+        {TABS.map((k) => (
           <Link
             key={k}
             href={`?tab=${k}`}
@@ -43,6 +49,8 @@ export default async function MarketingPage({
         ))}
       </nav>
       {tab === "coupons" && <Coupons />}
+      {tab === "deals" && <Deals />}
+      {tab === "bundles" && <Bundles />}
       {tab === "rules" && <Rules />}
       {tab === "synonyms" && <Synonyms />}
       {tab === "newsletter" && <Newsletter />}
@@ -69,6 +77,58 @@ async function Coupons() {
         isActive: c.isActive,
         used: c._count.orders,
         expired: !!c.endsAt && c.endsAt < now,
+      }))}
+    />
+  );
+}
+
+async function Deals() {
+  const now = new Date();
+  const [rows, products] = await Promise.all([listDealsAdmin(), productOptions()]);
+  return (
+    <DealManager
+      products={products}
+      deals={rows.map((d) => ({
+        id: d.id,
+        productName: d.product.name,
+        percent: d.percent,
+        startsAt: formatJalaliInput(d.startsAt),
+        endsAt: `${formatJalaliInput(d.endsAt)} ${new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit" }).format(d.endsAt)}`,
+        endsAtDate: formatJalaliInput(d.endsAt),
+        endHour: String(
+          Number(
+            new Intl.DateTimeFormat("en-US", {
+              timeZone: "Asia/Tehran",
+              hour: "numeric",
+              hourCycle: "h23",
+            }).format(d.endsAt),
+          ),
+        ),
+        isActive: d.isActive,
+        state: !d.isActive
+          ? ("off" as const)
+          : d.endsAt <= now
+            ? ("ended" as const)
+            : d.startsAt && d.startsAt > now
+              ? ("scheduled" as const)
+              : ("live" as const),
+      }))}
+    />
+  );
+}
+
+async function Bundles() {
+  const [rows, products] = await Promise.all([listBundlesAdmin(), productOptions()]);
+  return (
+    <BundleManager
+      products={products}
+      bundles={rows.map((b) => ({
+        id: b.id,
+        title: b.title,
+        percent: b.percent,
+        productIds: b.productIds,
+        isActive: b.isActive,
+        sortOrder: b.sortOrder,
       }))}
     />
   );

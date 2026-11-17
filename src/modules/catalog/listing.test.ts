@@ -18,6 +18,7 @@ const mk = (o: Partial<ProductSummary> & { slug: string }): ProductSummary => ({
   soldCount: 0,
   createdAt: new Date(2026, 0, 1),
   specs: {},
+  flavors: [],
   price: 1_000_000,
   oldPrice: null,
   stock: "in_stock",
@@ -74,6 +75,19 @@ describe("parseListingParams", () => {
 });
 
 describe("applyListing", () => {
+  it("فیلتر طعم (هر کدام از طعم‌ها) و شمارش آن", () => {
+    const tasty = [
+      mk({ slug: "x", flavors: ["caramel", "sweet"] }),
+      mk({ slug: "y", flavors: ["spicy"] }),
+      mk({ slug: "z", flavors: [] }),
+    ];
+    const p = parseListingParams({ taste: "caramel,spicy,evil" }, schema);
+    expect(p.specs.taste).toEqual(["caramel", "spicy"]);
+    const r = applyListing(tasty, schema, p, names);
+    expect(r.items.map((i) => i.slug).sort()).toEqual(["x", "y"]);
+    const facet = r.facets.find((f) => f.key === "taste");
+    expect(facet?.options.find((o) => o.value === "sweet")?.count).toBe(1);
+  });
   it("پرفروش‌ترین، با ناموجود در انتها", () => {
     const r = applyListing(products, schema, parseListingParams({}, schema), names);
     expect(r.items.map((p) => p.slug)).toEqual(["b", "a", "c"]);

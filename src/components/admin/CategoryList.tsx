@@ -11,6 +11,7 @@ type Cat = {
   name: string;
   slug: string;
   icon: string | null;
+  imageUrl: string | null;
   sortOrder: number;
   specSchema: SpecField[];
   products: number;
@@ -34,7 +35,12 @@ export function CategoryList({ categories }: { categories: Cat[] }) {
           <CategoryEditor key={c.id} category={c} onClose={close} />
         ) : (
           <div key={c.id} className={`${card} flex flex-wrap items-center gap-4 p-4`}>
-            <Icon name={(c.icon ?? "coffee") as IconName} className="text-copper size-6" />
+            {c.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- پیش‌نمایش پنل
+              <img src={c.imageUrl} alt="" className="size-9 rounded-full object-cover" />
+            ) : (
+              <Icon name={(c.icon ?? "coffee") as IconName} className="text-copper size-6" />
+            )}
             <b>{c.name}</b>
             <span dir="ltr" className="text-steel text-xs">
               /{c.slug}

@@ -110,15 +110,37 @@ export default async function AdminProductsPage({
               {pg.items.map((p) => (
                 <tr key={p.id} className="border-line hover:bg-surface-2/50 border-b last:border-0">
                   <td className="p-3">
-                    <Link
-                      href={`/admin/products/${p.id}`}
-                      className="font-bold underline-offset-4 hover:underline"
-                    >
-                      {p.name}
-                    </Link>
-                    <span dir="ltr" className="text-steel block text-xs">
-                      {p.slug}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/admin/products/${p.id}`}
+                        tabIndex={-1}
+                        aria-hidden
+                        className="rounded-ctl grid size-14 shrink-0 place-items-center overflow-hidden bg-white"
+                      >
+                        {p.images[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- عکس کوچک پنل
+                          <img
+                            src={p.images[0].url}
+                            alt=""
+                            loading="lazy"
+                            className="size-full object-contain p-0.5"
+                          />
+                        ) : (
+                          <span className="text-steel text-[10px]">{t.noImage}</span>
+                        )}
+                      </Link>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/admin/products/${p.id}`}
+                          className="font-bold underline-offset-4 hover:underline"
+                        >
+                          {p.name}
+                        </Link>
+                        <span dir="ltr" className="text-steel block truncate text-xs">
+                          {p.slug}
+                        </span>
+                      </div>
+                    </div>
                   </td>
                   <td className="text-ink-2 p-3">
                     {p.category.name}

@@ -63,6 +63,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           warrantyMonths: p.warrantyMonths ? String(p.warrantyMonths) : "",
           warrantyNote: p.warrantyNote ?? "",
           tags: p.tags.join("، "),
+          flavors: p.flavors,
           status: p.status,
           seoTitle: p.seoTitle ?? "",
           seoDescription: p.seoDescription ?? "",

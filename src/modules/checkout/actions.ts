@@ -101,7 +101,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
           userId: user.id,
           status: isCod ? "PROCESSING" : "PENDING_PAYMENT",
           subtotal: t.subtotal,
-          discountTotal: t.couponDiscount,
+          discountTotal: t.couponDiscount + t.bundleDiscount,
           shippingCost: shipping,
           taxTotal: 0, // قیمت‌ها شامل مالیات (D-018)
           grandTotal,

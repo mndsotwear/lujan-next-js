@@ -2,12 +2,19 @@
 import { cachedCatalog } from "@/lib/cache";
 import * as q from "./queries";
 
-export { getSearchDocuments, getProductSummaries, getWishlist, wishlistCount } from "./queries";
+export {
+  getSearchDocuments,
+  getProductSummaries,
+  getWishlist,
+  wishlistCount,
+  getFeedProducts,
+} from "./queries";
 
 // پرس‌وجوهای صفحه‌های فروشگاه با کش (D-016): هر تغییر پنل بی‌درنگ، وگرنه حداکثر ۶۰ ثانیه
 const navCategories = cachedCatalog("nav-categories", q.getNavCategories);
 export const getCategoryWithProducts = cachedCatalog("category", q.getCategoryWithProducts);
 export const getBestsellers = cachedCatalog("bestsellers", q.getBestsellers);
+export const getTasteProducts = cachedCatalog("taste", q.getTasteProducts);
 export const getNewest = cachedCatalog("newest", q.getNewest);
 export const getDiscounted = cachedCatalog("discounted", q.getDiscounted);
 export const getProductPage = cachedCatalog("product-page", q.getProductPage);

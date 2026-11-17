@@ -16,7 +16,8 @@ export function buildCsp(opts: {
     "default-src 'self'",
     `script-src 'self' 'nonce-${opts.nonce}' 'strict-dynamic'${opts.dev ? " 'unsafe-eval'" : ""}${analytics}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    // https://lujan.ir: تصویرهای محصولات واقعی که فعلاً از سایت فعلی خوانده می‌شوند (پیش‌نمایش در پنل)
+    "img-src 'self' data: blob: https://lujan.ir",
     "font-src 'self'",
     `connect-src 'self'${analytics}${opts.dev ? " ws: wss:" : ""}`,
     "object-src 'none'",

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BannerManager } from "@/components/admin/BannerManager";
 import { PageEditor } from "@/components/admin/PageEditor";
+import { StoryManager } from "@/components/admin/StoryManager";
+import { activeStories } from "@/modules/stories/rules";
+import { listStoriesAdmin } from "@/modules/stories/server";
 import { fa } from "@/content/fa";
 import { formatJalaliInput } from "@/lib/jalali";
 import { requireStaff } from "@/modules/admin/server";
@@ -14,7 +17,7 @@ import {
 } from "@/modules/content/server";
 import { btnPrimary, card } from "@/components/admin/ui";
 
-const TABS = ["banners", "pages", "posts", "landings"] as const;
+const TABS = ["banners", "stories", "pages", "posts", "landings"] as const;
 type Tab = (typeof TABS)[number];
 const faDate = (d: Date) =>
   new Intl.DateTimeFormat("fa-IR-u-ca-persian", { dateStyle: "medium" }).format(d);
@@ -48,6 +51,8 @@ export default async function ContentPage({
       </nav>
       {tab === "banners" ? (
         <Banners />
+      ) : tab === "stories" ? (
+        <Stories />
       ) : tab === "pages" ? (
         <Pages />
       ) : tab === "posts" ? (
@@ -56,6 +61,32 @@ export default async function ContentPage({
         <Landings />
       )}
     </div>
+  );
+}
+
+async function Stories() {
+  const rows = await listStoriesAdmin();
+  const live = new Set(activeStories(rows).map((s) => s.id));
+  return (
+    <StoryManager
+      stories={rows.map((s) => ({
+        id: s.id,
+        title: s.title,
+        cover: s.cover,
+        startsAt: formatJalaliInput(s.startsAt),
+        endsAt: formatJalaliInput(s.endsAt),
+        isActive: s.isActive,
+        sortOrder: s.sortOrder,
+        live: live.has(s.id),
+        slides: s.slides.map((x) => ({
+          id: x.id,
+          kind: x.kind,
+          url: x.url,
+          ctaLabel: x.ctaLabel,
+          ctaLink: x.ctaLink,
+        })),
+      }))}
+    />
   );
 }
 
@@ -70,6 +101,7 @@ async function Banners() {
         subtitle: b.subtitle ?? "",
         link: b.link ?? "",
         alt: b.alt,
+        placement: b.placement,
         imageDesktop: b.imageDesktop,
         imageMobile: b.imageMobile,
         startsAt: formatJalaliInput(b.startsAt),

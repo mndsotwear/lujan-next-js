@@ -37,7 +37,7 @@ export const categories: SeedCategory[] = [
   { slug: "syrup", name: "شربت", icon: "syrup", specSchema: SPEC_SCHEMAS.syrup },
   { slug: "snacks", name: "تنقلات", icon: "snack", specSchema: SPEC_SCHEMAS.snack },
   { slug: "korean-noodles", name: "نودل کره‌ای", icon: "noodle", specSchema: SPEC_SCHEMAS.noodle },
-  { slug: "olive-oil", name: "روغن زیتون", icon: "olive", specSchema: SPEC_SCHEMAS.oliveOil },
+  { slug: "olive-oil", name: "روغن و زیتون", icon: "olive", specSchema: SPEC_SCHEMAS.oliveOil },
   { slug: "tea", name: "چای", icon: "tea", specSchema: SPEC_SCHEMAS.tea },
 ];
 

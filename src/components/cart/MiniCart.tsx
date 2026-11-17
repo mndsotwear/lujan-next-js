@@ -1,5 +1,5 @@
 "use client";
-/** پنل کشویی سبد (FR-CART-01): موبایل از پایین، دسکتاپ از کنار؛ پس از افزودن کالا باز می‌شود. */
+/** پنل سبد از پایین — فقط موبایل و تبلت (FR-CART-01). دسکتاپ پنجره‌ی کوچک زیر دکمه‌ی سبد دارد (CartButton). */
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { fa } from "@/content/fa";
@@ -16,6 +16,8 @@ export function MiniCart() {
 
   useEffect(() => {
     if (!open) return;
+    // در دسکتاپ این پنل نمایش داده نمی‌شود
+    if (window.matchMedia("(min-width: 1024px)").matches) return setOpen(false);
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", onKey);
@@ -29,14 +31,19 @@ export function MiniCart() {
   if (!open) return null;
   const close = () => setOpen(false);
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={fa.cart.title}>
+    <div
+      className="fixed inset-0 z-50 lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label={fa.cart.title}
+    >
       <button
         type="button"
         aria-label={fa.cart.close}
         onClick={close}
         className="absolute inset-0 bg-black/45"
       />
-      <div className="rounded-t-sheet bg-surface shadow-sheet absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col lg:inset-y-0 lg:start-auto lg:end-0 lg:max-h-none lg:w-[420px] lg:rounded-none">
+      <div className="rounded-t-sheet bg-surface shadow-sheet absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col">
         <div className="border-line flex items-center justify-between border-b px-5 py-4">
           <b className="text-lg">
             {fa.cart.title}{" "}

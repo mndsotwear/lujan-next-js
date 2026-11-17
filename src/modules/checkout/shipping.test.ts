@@ -30,11 +30,17 @@ describe("parcelOf و chargeableKg (D-029)", () => {
 });
 
 describe("quoteShipping (D-029)", () => {
-  it("بدون آدرس فقط تحویل حضوری", () => expect(avail(null)).toEqual(["PICKUP"]));
+  it("بدون آدرس هیچ روشی نیست؛ تحویل حضوری خاموش است", () => {
+    expect(avail(null)).toEqual([]);
+    expect(quoteShipping("PICKUP", null, small)).toMatchObject({
+      available: false,
+      reason: "disabled",
+    });
+  });
   it("پیک فقط آبادان", () => {
-    expect(avail(abadan)).toEqual(["PICKUP", "COURIER", "TIPAX", "POST"]);
+    expect(avail(abadan)).toEqual(["COURIER", "TIPAX", "POST"]);
     expect(avail({ province: "خوزستان", city: "آبادان " })).toContain("COURIER");
-    expect(avail(tehran)).toEqual(["PICKUP", "TIPAX", "POST"]);
+    expect(avail(tehran)).toEqual(["TIPAX", "POST"]);
     expect(quoteShipping("COURIER", tehran, small).reason).toBe("courier_city");
   });
   it("قیمت پایه برای استان دیگر همان D-026", () => {
@@ -52,10 +58,10 @@ describe("quoteShipping (D-029)", () => {
     expect(quoteShipping("POST", tehran, p3).cost).toBe(70_000 + 2 * 25_000);
     expect(quoteShipping("TIPAX", tehran, p3).cost).toBe(95_000 + 1 * 20_000);
   });
-  it("کالای سنگین: صندلی ۶۵ کیلو فقط تیپاکس و حضوری", () => {
+  it("کالای سنگین: ۶۵ کیلو فقط تیپاکس", () => {
     const chair = parcelOf([{ weightGrams: 65_000, volumeCm3: 80 * 70 * 60, quantity: 1 }]);
     expect(chargeableKg(chair)).toBe(68);
-    expect(avail(abadan, chair)).toEqual(["PICKUP", "TIPAX"]);
+    expect(avail(abadan, chair)).toEqual(["TIPAX"]);
     expect(quoteShipping("POST", tehran, chair).reason).toBe("too_heavy");
     expect(quoteShipping("TIPAX", tehran, chair).cost).toBe(95_000 + 66 * 20_000);
   });

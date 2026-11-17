@@ -19,6 +19,8 @@ export type ProductSummary = {
   soldCount: number;
   createdAt: Date;
   specs: SpecValues;
+  /** طعم‌ها برای طعم‌یاب */
+  flavors: string[];
   /** کمترین قیمت مؤثر (تخفیفی اگر باشد) بین تنوع‌های فعال — تومان */
   price: number;
   /** قیمت پیش از تخفیف همان تنوع؛ اگر تخفیف ندارد null */
@@ -36,5 +38,6 @@ export type CategoryInfo = {
   slug: string;
   name: string;
   icon: string;
+  imageUrl?: string | null;
   specSchema: SpecSchema;
 };

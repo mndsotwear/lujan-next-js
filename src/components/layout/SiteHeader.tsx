@@ -87,7 +87,13 @@ export async function SiteHeader() {
             {c.name}
           </Link>
         ))}
-        <span className="bg-copper-soft text-copper ms-auto rounded-full px-3 py-1 text-sm font-bold whitespace-nowrap">
+        <Link
+          href="/taste"
+          className="ms-auto rounded-full bg-gradient-to-l from-[#ff8a3d] to-[#ff4f8b] px-3 py-1 text-sm font-bold whitespace-nowrap text-white hover:brightness-110"
+        >
+          {fa.nav.taste}
+        </Link>
+        <span className="bg-copper-soft text-copper rounded-full px-3 py-1 text-sm font-bold whitespace-nowrap">
           {fa.nav.wholesale}
         </span>
       </nav>

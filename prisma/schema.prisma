@@ -118,7 +118,8 @@ model Category {
   children   Category[] @relation("CategoryTree")
   name       String
   slug       String     @unique
-  icon       String? // نام آیکون در طراحی (clipper, scissors, ...)
+  icon       String? // نام آیکون در طراحی (coffee, syrup, ...)
+  imageUrl   String? // عکس دایره‌ی دسته در صفحه‌ی اصلی؛ خالی = آیکون
   sortOrder  Int        @default(0)
   /// شِمای مشخصات فنی دسته؛ فیلترها و دستیار از آن استفاده می‌کنند (بخش ۴-۱)
   /// [{ key, label, type: "enum"|"number"|"boolean", unit?, options?, filterable }]
@@ -149,6 +150,8 @@ model Product {
   warrantyMonths Int? // FR-CAT-11
   warrantyNote   String?
   tags           String[] // «جدید»، «پرفروش»، «گارانتی‌دار» (FR-CAT-10)
+  /// طعم‌ها برای «طعم‌یاب» (slug از modules/catalog/flavors.ts)
+  flavors        String[]      @default([])
   status         ProductStatus @default(DRAFT)
   seoTitle       String?
   seoDescription String?
@@ -165,6 +168,7 @@ model Product {
   wishlistedBy  WishlistItem[]
   rulesFrom     RecommendationRule[] @relation("RuleSource")
   rulesTo       RecommendationRule[] @relation("RuleTarget")
+  flashDeals    FlashDeal[]
 
   @@index([categoryId, status])
   @@index([brandId])
@@ -291,6 +295,8 @@ model Cart {
   coupon    Coupon?    @relation(fields: [couponId], references: [id])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  /// پیامک یادآوری سبد رهاشده فرستاده شد
+  remindedAt DateTime?
   items     CartItem[]
 
   @@index([userId])
@@ -306,6 +312,7 @@ model CartItem {
   priceAtAdd   Int // «قیمت لحظه» برای پیام تغییر قیمت (FR-CART-03)
   savedForLater Boolean @default(false) // FR-CART-07
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
 
   @@unique([cartId, variantId])
 }
@@ -679,6 +686,8 @@ model Banner {
   imageDesktop String // /media/banners/...
   imageMobile  String?
   alt          String
+  /// hero = اسلایدر بالای صفحه؛ side1 / side2 = دو کارت کنار اسلایدر
+  placement    String    @default("hero")
   startsAt     DateTime?
   endsAt       DateTime?
   isActive     Boolean   @default(true)
@@ -764,4 +773,59 @@ model Subscriber {
 
   @@unique([channel, address])
   @@index([userId])
+}
+
+/// استوری‌های صفحه‌ی اصلی (مثل دیجی‌کالا): عکس دایره + چند اسلاید عکس یا ویدیو
+model Story {
+  id        String       @id @default(cuid())
+  title     String
+  cover     String // /media/stories/...
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean      @default(true)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  slides    StorySlide[]
+}
+
+model StorySlide {
+  id        String   @id @default(cuid())
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  kind      String // image | video
+  url       String
+  ctaLabel  String?
+  ctaLink   String? // نشانی داخلی یا https
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([storyId])
+}
+
+/// «پیشنهاد شگفت‌انگیز»: درصد تخفیف زمان‌دار روی محصول
+model FlashDeal {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  percent   Int
+  startsAt  DateTime?
+  endsAt    DateTime
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  @@index([productId])
+  @@index([endsAt])
+}
+
+/// بسته‌ی ترکیبی «با هم ارزان‌تر»: وقتی همه‌ی محصولات در سبد باشند، درصد تخفیف
+model Bundle {
+  id         String   @id @default(cuid())
+  title      String
+  percent    Int
+  productIds String[]
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

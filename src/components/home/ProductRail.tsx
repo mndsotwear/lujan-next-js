@@ -12,22 +12,27 @@ export function ProductRail({
   schemaOf,
   tone = "plain",
   eyebrow,
+  extra,
 }: {
   title: string;
   href?: string;
   products: ProductSummary[];
   schemaOf: Map<string, SpecSchema>;
-  tone?: "plain" | "brand";
+  tone?: "plain" | "brand" | "flash";
   eyebrow?: string;
+  /** کنار عنوان، مثل شمارش معکوس */
+  extra?: React.ReactNode;
 }) {
   if (products.length === 0) return null;
-  const brand = tone === "brand";
+  const brand = tone !== "plain";
   return (
     <section
       className={
-        brand
-          ? "rounded-sheet from-copper bg-gradient-to-l to-[#0b2a6b] p-5 text-white sm:p-8"
-          : "py-2"
+        tone === "flash"
+          ? "rounded-sheet bg-gradient-to-l from-[#c81e3a] to-[#ff4d4d] p-5 text-white sm:p-8"
+          : brand
+            ? "rounded-sheet from-copper bg-gradient-to-l to-[#0b2a6b] p-5 text-white sm:p-8"
+            : "py-2"
       }
     >
       <div className="mb-4 flex items-end justify-between gap-3">
@@ -40,6 +45,7 @@ export function ProductRail({
             </span>
           )}
           <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{title}</h2>
+          {extra && <div className="mt-2">{extra}</div>}
         </div>
         {href && (
           <Link

@@ -16,9 +16,15 @@ const nextConfig: NextConfig = {
     "*": ["backups/**", "storage/**", "e2e/**", "ci/**", "*.log"],
   },
   poweredByHeader: false,
-  images: { formats: ["image/avif", "image/webp"] }, // NFR-PERF-04
-  // تصویرهای مرجوعی: ۳ × ۴ مگابایت (D-030)
-  experimental: { serverActions: { bodySizeLimit: "13mb" } },
+  images: {
+    formats: ["image/avif", "image/webp"], // NFR-PERF-04
+    // تصویرهای محصولات واقعی فعلاً از سایت فعلی lujan.ir خوانده می‌شوند
+    remotePatterns: [
+      { protocol: "https", hostname: "lujan.ir", pathname: "/wp-content/uploads/**" },
+    ],
+  },
+  // تصویرهای مرجوعی: ۳ × ۴ مگابایت (D-030)؛ ویدیوی استوری تا ۲۵ مگابایت
+  experimental: { serverActions: { bodySizeLimit: "30mb" } }, // ویدیوی استوری تا ۲۵ مگابایت
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

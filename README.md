@@ -70,4 +70,5 @@ prisma/         شِمای پایگاه داده، داده‌ی نمونه و �
 بازگردانی فقط روی سرور: `npm run backup:restore` (فهرست) و `npm run backup:restore -- <نام فایل>` (با تأیید). متغیرهای اختیاری: `BACKUP_DIR`، `BACKUP_KEEP_DAYS`، `PG_BIN_DIR` (پوشه‌ی pg_dump؛ روی مک DBngin خودکار پیدا می‌شود).
 
 روی سیستم توسعه لازم نیست؛ هر دو را می‌توان دستی هم اجرا کرد.
+
 # lujan-next-js

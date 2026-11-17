@@ -71,6 +71,7 @@ export function CategoryEditor({
     name: string;
     slug: string;
     icon: string | null;
+    imageUrl: string | null;
     sortOrder: number;
     specSchema: SpecField[];
   };
@@ -135,6 +136,37 @@ export function CategoryEditor({
             ))}
           </FormSelect>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        {category?.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- پیش‌نمایش پنل
+          <img
+            src={category.imageUrl}
+            alt={category.name}
+            className="border-line size-16 rounded-full border object-cover"
+          />
+        )}
+        <div className="flex flex-col gap-1">
+          <label htmlFor="c-image" className="text-sm font-medium">
+            {tc.image}
+          </label>
+          <input
+            id="c-image"
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="text-sm"
+          />
+          <small className="text-steel text-xs">{tc.imageHint}</small>
+          {e.image && <small className="text-bad text-xs">{e.image}</small>}
+        </div>
+        {category?.imageUrl && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="removeImage" className="accent-copper size-4" />
+            {tc.removeImage}
+          </label>
+        )}
       </div>
 
       <fieldset className="space-y-3">

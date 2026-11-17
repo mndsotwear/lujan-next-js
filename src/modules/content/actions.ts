@@ -8,7 +8,7 @@ import { parseJalali } from "@/lib/jalali";
 import { audit, staffWith } from "@/modules/admin/server";
 import { sniffImage } from "@/modules/returns";
 import { removeBannerImage, saveBannerImage } from "./media";
-import { PAGE_SLUGS, safeLink, type PageSlug } from "./rules";
+import { PAGE_SLUGS, safeLink, toPlacement, type PageSlug } from "./rules";
 
 export type ContentState = { ok: boolean; message: string; values?: Record<string, string> } | null;
 const MAX = 8 * 1024 * 1024;
@@ -53,6 +53,7 @@ export async function saveBanner(_prev: ContentState, form: FormData): Promise<C
     subtitle: (values.subtitle ?? "").trim().slice(0, 160) || null,
     link,
     alt,
+    placement: toPlacement(values.placement),
     startsAt,
     endsAt,
     isActive: values.isActive === "on",

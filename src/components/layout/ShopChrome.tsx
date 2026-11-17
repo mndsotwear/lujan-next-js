@@ -1,5 +1,6 @@
 /** قاب فروشگاه: سربرگ، فوتر، نوار پایین موبایل و سبد — برای همه‌ی صفحه‌های فروشگاه (نه پنل مدیریت) */
 import { CartProvider } from "@/components/cart/CartProvider";
+import { CartToast } from "@/components/cart/CartToast";
 import { MiniCart } from "@/components/cart/MiniCart";
 import { Analytics } from "../Analytics";
 import { getCart } from "@/modules/cart/server";
@@ -16,6 +17,7 @@ export async function ShopChrome({ children }: { children: React.ReactNode }) {
         <SiteFooter />
         <MobileTabBar />
         <MiniCart />
+        <CartToast />
       </div>
       <Analytics />
     </CartProvider>

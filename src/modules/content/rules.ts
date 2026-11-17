@@ -13,6 +13,12 @@ export function activeBanners<
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/** جایگاه بنر: اسلایدر بالای صفحه یا یکی از دو کارت کنار آن */
+export const BANNER_PLACEMENTS = ["hero", "side1", "side2"] as const;
+export type BannerPlacement = (typeof BANNER_PLACEMENTS)[number];
+export const toPlacement = (v: string | null | undefined): BannerPlacement =>
+  (BANNER_PLACEMENTS as readonly string[]).includes(v ?? "") ? (v as BannerPlacement) : "hero";
+
 /** فقط نشانی داخلی (/…) یا https؛ جلوی javascript: و مانند آن */
 export function safeLink(input: string): string | null {
   const s = input.trim();

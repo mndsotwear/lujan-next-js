@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { fa } from "@/content/fa";
 import { deleteBanner, saveBanner } from "@/modules/content/actions";
+import { BANNER_PLACEMENTS } from "@/modules/content/rules";
+import { FormSelect } from "@/components/FormSelect";
 import { btnGhost, btnPrimary, card, inputCls } from "./ui";
 
 export type BannerRow = {
@@ -12,6 +14,7 @@ export type BannerRow = {
   subtitle: string;
   link: string;
   alt: string;
+  placement: string;
   imageDesktop: string;
   imageMobile: string | null;
   startsAt: string;
@@ -66,6 +69,24 @@ function BannerForm({ b, onDone }: { b?: BannerRow; onDone: () => void }) {
     <form action={action} className="space-y-3">
       {b && <input type="hidden" name="id" value={b.id} />}
       <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1 sm:col-span-2">
+          <label htmlFor={`bn-${id}-placement`} className="text-xs font-medium">
+            {t.placement}
+          </label>
+          <FormSelect
+            id={`bn-${id}-placement`}
+            name="placement"
+            defaultValue={v?.placement ?? b?.placement ?? "hero"}
+            className={`${inputCls} min-h-10 text-sm`}
+          >
+            {BANNER_PLACEMENTS.map((p) => (
+              <option key={p} value={p}>
+                {t.placements[p]}
+              </option>
+            ))}
+          </FormSelect>
+          <small className="text-steel text-[11px]">{t.placementHint}</small>
+        </div>
         {f("title", t.title)}
         {f("subtitle", t.subtitle)}
         {f("link", t.link, true)}
@@ -131,6 +152,9 @@ export function BannerManager({ banners }: { banners: BannerRow[] }) {
                 className="rounded-ctl h-16 w-40 object-cover"
               />
               <div className="min-w-0 text-sm">
+                <span className="bg-copper-soft text-copper me-2 rounded-full px-2 py-0.5 text-[11px] font-bold">
+                  {t.placements[b.placement as keyof typeof t.placements] ?? t.placements.hero}
+                </span>
                 <b>{b.title}</b>
                 {b.subtitle && <span className="text-ink-2 block">{b.subtitle}</span>}
                 <span className={b.live ? "text-ok" : "text-steel"}>

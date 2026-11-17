@@ -20,9 +20,11 @@ test("خرید کامل با پرداخت آنلاین آزمایشی و پیگ�
   await expect(page.locator("main")).toContainText("خیابان آزمون سرتاسری");
 
   // سبد
-  await page.goto("/products/tea-black-leaf-500");
+  await page.goto("/categories/tea?instock=1");
+  await page.locator('main a[href^="/products/"]').first().click();
+  await page.waitForURL(/\/products\//);
   await page.getByRole("button", { name: "افزودن به سبد" }).first().click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByText("به سبد افزوده شد")).toBeVisible();
 
   // تسویه
   await page.goto("/checkout");
@@ -48,12 +50,12 @@ test("خرید کامل با پرداخت آنلاین آزمایشی و پیگ�
 });
 
 test("علاقه‌مندی: مهمان به ورود می‌رود؛ پس از ورود ذخیره می‌شود", async ({ page }) => {
-  await page.goto("/products/tea-black-leaf-500");
+  await page.goto(encodeURI("/products/چای-سیلانی-ممتاز-المنیس-450-گرم"));
   await page.getByRole("button", { name: "افزودن به علاقه‌مندی‌ها" }).click();
   await page.waitForURL(/\/login/);
-  await login(page, freshMobile(), "/products/tea-black-leaf-500");
+  await login(page, freshMobile(), encodeURI("/products/چای-سیلانی-ممتاز-المنیس-450-گرم"));
   await page.getByRole("button", { name: "افزودن به علاقه‌مندی‌ها" }).click();
   await expect(page.getByRole("button", { name: "در علاقه‌مندی‌ها" })).toBeVisible();
   await page.goto("/account/wishlist");
-  await expect(page.locator("main")).toContainText("چای سیاه برگی");
+  await expect(page.locator("main")).toContainText("المنیس");
 });

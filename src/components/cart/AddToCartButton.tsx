@@ -3,7 +3,7 @@ import { useState } from "react";
 import { fa } from "@/content/fa";
 import { useCart } from "./CartProvider";
 
-/** افزودن به سبد (FR-CART-01، FR-REC-05) — پس از افزودن پنل سبد با پیشنهادهای مکمل باز می‌شود. */
+/** افزودن به سبد (FR-CART-01، FR-REC-05) — پس از افزودن پیام کوچک «به سبد افزوده شد» نمایش داده می‌شود. */
 export function AddToCartButton({
   variantId,
   name,

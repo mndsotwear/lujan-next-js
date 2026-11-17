@@ -5,7 +5,10 @@ import { STORE } from "@/config/store";
 import { normalize } from "@/modules/search/normalize";
 
 export type ShippingMethod = "PICKUP" | "COURIER" | "TIPAX" | "POST";
-export const SHIPPING_METHODS: ShippingMethod[] = ["PICKUP", "COURIER", "TIPAX", "POST"];
+/** روش‌هایی که به مشتری نشان داده می‌شوند؛ تحویل حضوری فقط وقتی STORE.pickupEnabled روشن باشد */
+export const SHIPPING_METHODS: ShippingMethod[] = (
+  ["PICKUP", "COURIER", "TIPAX", "POST"] as ShippingMethod[]
+).filter((m) => m !== "PICKUP" || STORE.pickupEnabled);
 
 /** یک قلم برای محاسبه‌ی بسته: وزن و ابعاد هر عدد */
 export type ParcelItem = {
@@ -22,7 +25,7 @@ export type ShippingQuote = {
   eta: string;
   available: boolean;
   /** چرا در دسترس نیست */
-  reason?: "no_address" | "courier_city" | "too_heavy";
+  reason?: "disabled" | "no_address" | "courier_city" | "too_heavy";
 };
 
 const same = (a: string | null | undefined, b: string) => !!a && normalize(a) === normalize(b);
@@ -59,7 +62,10 @@ export function quoteShipping(
       ? 0
       : cfg.base + extraKg * cfg.perKg - (inProvince ? cfg.sameProvinceDiscount : 0);
   const quote = { method, cost: Math.max(0, cost), eta: cfg.eta };
-  if (method === "PICKUP") return { ...quote, available: true };
+  if (method === "PICKUP")
+    return STORE.pickupEnabled
+      ? { ...quote, available: true }
+      : { ...quote, available: false, reason: "disabled" };
   if (!dest) return { ...quote, available: false, reason: "no_address" };
   if (method === "COURIER" && !same(dest.city, STORE.storeLocation.city))
     return { ...quote, available: false, reason: "courier_city" };

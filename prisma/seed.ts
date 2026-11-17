@@ -46,6 +46,8 @@ async function main() {
   const brandId = new Map((await db.brand.findMany()).map((b) => [b.slug, b.id]));
 
   // ۳. محصولات، تنوع‌ها، موجودی و قیمت عمده
+  // وقتی محصولات واقعی lujan.ir وارد شده‌اند (SKU با LJ-)، نمونه‌ها بایگانی می‌مانند
+  const hasReal = (await db.variant.count({ where: { sku: { startsWith: "LJ-" } } })) > 0;
   for (const p of products) {
     const data = {
       name: p.name,
@@ -56,7 +58,7 @@ async function main() {
       specs: p.specs,
       warrantyMonths: p.warrantyMonths ?? null,
       tags: p.tags ?? [],
-      status: "PUBLISHED" as const,
+      status: hasReal ? ("ARCHIVED" as const) : ("PUBLISHED" as const),
       ratingAvg: p.rating?.[0] ?? 0,
       ratingCount: p.rating?.[1] ?? 0,
       soldCount: p.sold ?? 0,

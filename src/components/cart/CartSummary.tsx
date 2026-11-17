@@ -22,6 +22,12 @@ export function CartSummary({ withCoupon = true }: { withCoupon?: boolean }) {
         {row(fa.cart.subtotal, `${formatNumber(t.subtotal)} ${fa.units.toman}`)}
         {t.itemSavings > 0 &&
           row(fa.cart.savings, `${formatNumber(t.itemSavings)} ${fa.units.toman}`, "text-ok")}
+        {t.bundleDiscount > 0 &&
+          row(
+            fa.cart.bundleLine,
+            `− ${formatNumber(t.bundleDiscount)} ${fa.units.toman}`,
+            "text-ok",
+          )}
         {view.coupon &&
           !view.coupon.error &&
           row(

@@ -11,6 +11,8 @@ import { db } from "@/lib/db";
 import { can } from "@/modules/admin";
 import { audit, staffWith } from "@/modules/admin/server";
 import { sniffImage } from "@/modules/returns";
+import { isFlavor } from "./flavors";
+import { removeContentImage, saveContentImage } from "@/modules/content/media";
 import { resetSearchCache } from "@/modules/search/server";
 import {
   normalizeSku,
@@ -133,6 +135,9 @@ export async function saveProduct(_prev: CatalogState, form: FormData): Promise<
     warrantyMonths: warrantyRaw && !Number.isNaN(warrantyRaw) ? warrantyRaw : null,
     warrantyNote: str(form, "warrantyNote", 120) || null,
     tags: parseTags(str(form, "tags", 300)),
+    ...(form.get("flavorsField") === "1"
+      ? { flavors: [...new Set(form.getAll("flavors").map(String))].filter(isFlavor) }
+      : {}),
     status,
     seoTitle: str(form, "seoTitle", 70) || null,
     seoDescription: str(form, "seoDescription", 170) || null,
@@ -392,16 +397,28 @@ export async function saveCategory(_prev: CatalogState, form: FormData): Promise
   if (Object.keys(errors).length) return fail(form, errors);
   const old = id ? await db.category.findUnique({ where: { id } }) : null;
   if (id && !old) return { ok: false, message: t.errors.notFound };
+  // عکس دایره‌ی دسته در صفحه‌ی اصلی (اختیاری)
+  let imageUrl: string | null | undefined;
+  const file = form.get("image");
+  if (file && typeof file === "object" && "arrayBuffer" in file && file.size > 0) {
+    if (file.size > 4 * 1024 * 1024) return fail(form, { image: t.errors.imageSize });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const ext = sniffImage(bytes.subarray(0, 16));
+    if (!ext) return fail(form, { image: t.errors.imageType });
+    imageUrl = await saveContentImage(bytes, ext);
+  } else if (form.get("removeImage") === "on") imageUrl = null;
   const data = {
     name,
     slug,
     icon: str(form, "icon", 30) || null,
+    ...(imageUrl !== undefined ? { imageUrl } : {}),
     sortOrder: parseAmount(str(form, "sortOrder")) || 0,
     specSchema: schema as unknown as Prisma.InputJsonValue,
   };
   const c = old
     ? await db.category.update({ where: { id: old.id }, data })
     : await db.category.create({ data });
+  if (old?.imageUrl && imageUrl !== undefined) await removeContentImage(old.imageUrl);
   await audit(me.id, old ? "category.update" : "category.create", "category", c.id, {
     name,
     fields: schema.length,

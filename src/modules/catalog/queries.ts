@@ -8,26 +8,36 @@ import type { SpecSchema, SpecValues } from "./specs";
 import { availableQty, stockState, type StockState } from "./stock";
 import type { CategoryInfo, ProductSummary } from "./types";
 import { buildMegaMenu, type MegaCategory } from "./mega-menu";
+import { activeDeal, effectivePrice } from "./deals";
 
 const summaryInclude = {
   brand: true,
   category: { select: { slug: true, icon: true } },
   variants: { where: { isActive: true }, include: { inventory: true } },
   images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true, alt: true } },
+  // پیشنهاد شگفت‌انگیز؛ بازه‌ی زمانی در کد سنجیده می‌شود (activeDeal)
+  flashDeals: {
+    where: { isActive: true },
+    select: { percent: true, startsAt: true, endsAt: true, isActive: true },
+  },
 } satisfies Prisma.ProductInclude;
 
 type ProductWithSummary = Prisma.ProductGetPayload<{ include: typeof summaryInclude }>;
 
 const STOCK_RANK: Record<StockState, number> = { in_stock: 2, low: 1, out: 0 };
 
-export function variantView(v: ProductWithSummary["variants"][number]) {
+export function variantView(
+  v: ProductWithSummary["variants"][number],
+  deal: { percent: number } | null = null,
+) {
   const inv = v.inventory ?? { onHand: 0, reserved: 0, safetyStock: 0, lowStockThreshold: 3 };
+  const { price, oldPrice } = effectivePrice(v, deal);
   return {
     id: v.id,
     sku: v.sku,
     attributes: (v.attributes ?? {}) as Record<string, string>,
-    price: v.salePrice ?? v.price,
-    oldPrice: v.salePrice ? v.price : null,
+    price,
+    oldPrice,
     stock: stockState(inv),
     available: availableQty(inv),
   };
@@ -35,7 +45,8 @@ export function variantView(v: ProductWithSummary["variants"][number]) {
 export type VariantView = ReturnType<typeof variantView>;
 
 function toSummary(p: ProductWithSummary): ProductSummary {
-  const variants = p.variants.map(variantView);
+  const deal = activeDeal(p.flashDeals);
+  const variants = p.variants.map((v) => variantView(v, deal));
   // قیمت نمایشی: ارزان‌ترین تنوع موجود؛ اگر هیچ‌کدام موجود نیست، ارزان‌ترین تنوع
   const pool = variants.some((v) => v.stock !== "out")
     ? variants.filter((v) => v.stock !== "out")
@@ -64,6 +75,7 @@ function toSummary(p: ProductWithSummary): ProductSummary {
     soldCount: p.soldCount,
     createdAt: p.createdAt,
     specs: (p.specs ?? {}) as SpecValues,
+    flavors: p.flavors ?? [],
     price: cheapest?.price ?? 0,
     oldPrice: cheapest?.oldPrice ?? null,
     stock: best,
@@ -78,12 +90,14 @@ const toCategory = (c: {
   slug: string;
   name: string;
   icon: string | null;
+  imageUrl?: string | null;
   specSchema: Prisma.JsonValue;
 }): CategoryInfo => ({
   id: c.id,
   slug: c.slug,
   name: c.name,
   icon: c.icon ?? "coffee",
+  imageUrl: c.imageUrl ?? null,
   specSchema: (c.specSchema ?? []) as unknown as SpecSchema,
 });
 
@@ -222,7 +236,7 @@ export async function getProductPage(slug: string) {
       images: p.images.map((i) => ({ url: i.url, alt: i.alt })),
     },
     category: toCategory(p.category),
-    variants: p.variants.map(variantView),
+    variants: p.variants.map((v) => variantView(v, activeDeal(p.flashDeals))),
     reviews: p.reviews.map((r) => ({
       id: r.id,
       name: r.user.name,
@@ -298,3 +312,42 @@ export async function getWishlist(userId: string): Promise<ProductSummary[]> {
 }
 
 export const wishlistCount = (userId: string) => db.wishlistItem.count({ where: { userId } });
+
+/** همه‌ی محصولات منتشرشده برای خروجی ترب و ایمالز */
+export async function getFeedProducts() {
+  const rows = await db.product.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      ...summaryInclude,
+      category: { select: { slug: true, icon: true, name: true } },
+      images: { orderBy: { sortOrder: "asc" }, take: 5, select: { url: true, alt: true } },
+    },
+  });
+  return rows.map((p) => {
+    const s = toSummary(p);
+    return {
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      categoryName: p.category.name,
+      brandName: p.brand.name,
+      summary: p.summary,
+      price: s.price,
+      oldPrice: s.oldPrice,
+      inStock: s.stock !== "out" && s.price > 0,
+      images: p.images.map((i) => i.url),
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    };
+  });
+}
+
+/** همه‌ی محصولات منتشرشده برای طعم‌یاب (تعداد کم است؛ رتبه‌بندی در کد) */
+export async function getTasteProducts(): Promise<ProductSummary[]> {
+  const rows = await db.product.findMany({
+    where: { status: "PUBLISHED" },
+    include: summaryInclude,
+  });
+  return rows.map(toSummary);
+}

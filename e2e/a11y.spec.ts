@@ -6,7 +6,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 const PAGES = [
   "/",
   "/categories/instant-coffee",
-  "/products/tea-black-leaf-500",
+  encodeURI("/products/چای-سیلانی-ممتاز-المنیس-450-گرم"),
   "/search?q=چای",
   "/cart",
   "/login",

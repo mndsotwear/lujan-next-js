@@ -22,6 +22,7 @@ export default async function CategoriesPage() {
           name: c.name,
           slug: c.slug,
           icon: c.icon,
+          imageUrl: c.imageUrl,
           sortOrder: c.sortOrder,
           specSchema: (c.specSchema ?? []) as unknown as SpecField[],
           products: c._count.products,

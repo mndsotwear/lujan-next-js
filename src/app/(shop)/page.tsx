@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { Finder } from "@/components/catalog/Finder";
+import { TasteFinder } from "@/components/catalog/TasteFinder";
 import { CategoryStrip } from "@/components/home/CategoryStrip";
 import { HeroSlider, type Slide } from "@/components/home/HeroSlider";
 import { ProductRail } from "@/components/home/ProductRail";
@@ -15,6 +16,11 @@ import {
   getNewest,
 } from "@/modules/catalog/server";
 import { getActiveBanners } from "@/modules/content/server";
+import { StoriesBar } from "@/components/stories/StoriesBar";
+import { getActiveStories } from "@/modules/stories/server";
+import { BundleCard } from "@/components/catalog/BundleCard";
+import { Countdown } from "@/components/home/Countdown";
+import { getBundleViews, getFlashDeals } from "@/modules/promotions/server";
 import { storeLd } from "@/modules/seo";
 import { STORE } from "@/config/store";
 
@@ -33,18 +39,26 @@ export default async function HomePage({
 }) {
   const deleted = (await searchParams).account === "deleted";
   const categories = await getNavCategories();
-  const [best, discounted, newest, banners, ...byCategory] = await Promise.all([
+  const [flash, bundles] = await Promise.all([getFlashDeals(), getBundleViews()]);
+  const [best, discounted, newest, banners, stories, ...byCategory] = await Promise.all([
     getBestsellers(10),
     getDiscounted(10),
     getNewest(10),
     getActiveBanners(),
+    getActiveStories(),
     ...categories.slice(0, 3).map((c) => getBestsellers(10, c.slug)),
   ]);
   const schemaOf = new Map(categories.map((c) => [c.slug, c.specSchema]));
   // بنرهای مدیر در پنل جای اسلایدهای پیش‌فرض را می‌گیرند
+  const hero = banners.filter((b) => b.placement === "hero");
+  // دو کارت کنار اسلایدر: بنر جایگاه side1/side2 از پنل، وگرنه کارت پیش‌فرض
+  const sideCards = (["side1", "side2"] as const).map((slot, i) => ({
+    fallback: fa.home.promos[i]!,
+    banner: banners.find((b) => b.placement === slot) ?? null,
+  }));
   const slides: Slide[] =
-    banners.length > 0
-      ? banners.map((b) => ({
+    hero.length > 0
+      ? hero.map((b) => ({
           id: b.id,
           title: b.title,
           subtitle: b.subtitle,
@@ -74,40 +88,79 @@ export default async function HomePage({
         {fa.site.name} — {fa.site.tagline}
       </h1>
 
+      <StoriesBar stories={stories} />
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
         <HeroSlider slides={slides} />
         <div className="grid gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
-          {fa.home.promos.map((p) => (
-            <Link
-              key={p.href}
-              href={p.href}
-              className={`rounded-sheet shadow-card group relative isolate flex min-h-[150px] flex-col justify-center gap-1 overflow-hidden bg-gradient-to-br p-6 lg:min-h-[192px] ${p.bg}`}
-            >
-              <Icon
-                name={p.icon}
-                aria-hidden
-                className="text-ink/15 absolute end-3 -bottom-4 -z-0 size-36 transition-transform group-hover:scale-110"
-              />
-              <b className="relative text-xl font-black">{p.title}</b>
-              <span className="text-ink-2 relative text-sm">{p.sub}</span>
-              <span className="bg-ink relative mt-2 inline-grid min-h-9 w-fit place-items-center rounded-full px-4 text-xs font-bold text-white">
-                {fa.home.heroPrimary}
-              </span>
-            </Link>
-          ))}
+          {sideCards.map(({ banner: b, fallback: p }) =>
+            b ? (
+              <Link
+                key={b.id}
+                href={b.link ?? "/"}
+                className="rounded-sheet shadow-card group relative isolate flex min-h-[150px] flex-col justify-end gap-1 overflow-hidden p-6 text-white lg:min-h-[192px]"
+              >
+                <Image
+                  src={b.imageDesktop}
+                  alt={b.alt}
+                  fill
+                  sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+                  className="-z-10 object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <span
+                  aria-hidden
+                  className="absolute inset-0 -z-10 bg-gradient-to-t from-black/70 via-black/25 to-transparent"
+                />
+                <b className="text-xl font-black drop-shadow">{b.title}</b>
+                {b.subtitle && <span className="text-sm text-white/90">{b.subtitle}</span>}
+                <span className="text-ink mt-2 inline-grid min-h-9 w-fit place-items-center rounded-full bg-white px-4 text-xs font-bold">
+                  {fa.home.heroPrimary}
+                </span>
+              </Link>
+            ) : (
+              <Link
+                key={p.href}
+                href={p.href}
+                className={`rounded-sheet shadow-card group relative isolate flex min-h-[150px] flex-col justify-center gap-1 overflow-hidden bg-gradient-to-br p-6 lg:min-h-[192px] ${p.bg}`}
+              >
+                <Icon
+                  name={p.icon}
+                  aria-hidden
+                  className="text-ink/15 absolute end-3 -bottom-4 -z-0 size-36 transition-transform group-hover:scale-110"
+                />
+                <b className="relative text-xl font-black">{p.title}</b>
+                <span className="text-ink-2 relative text-sm">{p.sub}</span>
+                <span className="bg-ink relative mt-2 inline-grid min-h-9 w-fit place-items-center rounded-full px-4 text-xs font-bold text-white">
+                  {fa.home.heroPrimary}
+                </span>
+              </Link>
+            ),
+          )}
         </div>
       </div>
 
       <CategoryStrip categories={categories} />
 
-      <ProductRail
-        tone="brand"
-        eyebrow={fa.home.railDiscountTag}
-        title={fa.home.railDiscount}
-        href="/categories/instant-coffee"
-        products={discounted}
-        schemaOf={schemaOf}
-      />
+      {/* پیشنهاد شگفت‌انگیز؛ بدون پیشنهاد فعال، همان ردیف تخفیف‌ها */}
+      {flash.products.length > 0 && flash.endsAt ? (
+        <ProductRail
+          tone="flash"
+          eyebrow={fa.deals.eyebrow}
+          title={fa.deals.title}
+          products={flash.products}
+          schemaOf={schemaOf}
+          extra={<Countdown endsAt={flash.endsAt} />}
+        />
+      ) : (
+        <ProductRail
+          tone="brand"
+          eyebrow={fa.home.railDiscountTag}
+          title={fa.home.railDiscount}
+          href="/categories/instant-coffee"
+          products={discounted}
+          schemaOf={schemaOf}
+        />
+      )}
 
       <section
         aria-label={fa.home.trust[0].title}
@@ -126,6 +179,19 @@ export default async function HomePage({
         ))}
       </section>
 
+      {bundles.length > 0 && (
+        <section aria-labelledby="bundles-title">
+          <h2 id="bundles-title" className="mb-4 text-2xl font-black tracking-tight sm:text-3xl">
+            {fa.bundles.homeTitle}
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {bundles.slice(0, 6).map((b) => (
+              <BundleCard key={b.id} b={b} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <ProductRail
         eyebrow="محبوب مشتری‌ها"
         title={fa.home.railBest}
@@ -138,13 +204,19 @@ export default async function HomePage({
         className="rounded-sheet from-copper-soft to-surface border-line grid scroll-mt-40 items-center gap-8 border bg-gradient-to-br p-6 sm:p-10 md:grid-cols-[1.1fr_1fr]"
       >
         <div>
-          <h2 className="mb-3 text-[length:clamp(1.6rem,4vw,2.4rem)] leading-snug font-black">
-            {fa.home.finderTitle}
+          <span className="rounded-chip bg-gradient-to-l from-[#ff8a3d] to-[#ff4f8b] px-3 py-0.5 text-xs font-bold text-white">
+            {fa.taste.eyebrow}
+          </span>
+          <h2 className="mt-2 mb-3 text-[length:clamp(1.6rem,4vw,2.4rem)] leading-snug font-black">
+            {fa.taste.homeTitle}
           </h2>
-          <p className="text-ink-2 max-w-[46ch]">{fa.home.finderSub}</p>
+          <p className="text-ink-2 max-w-[46ch]">{fa.taste.homeSub}</p>
         </div>
         <div className="bg-surface rounded-sheet shadow-card p-5 sm:p-6">
-          <Finder />
+          <TasteFinder
+            compact
+            categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
+          />
         </div>
       </section>
 

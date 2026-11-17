@@ -1,5 +1,6 @@
 "use server";
 /** عملیات سبد (FR-CART-01..04, 07، FR-REC-05) — هر کدام CartView تازه برمی‌گرداند تا رابط بدون بارگذاری مجدد به‌روز شود. */
+import { activeDeal, effectivePrice } from "@/modules/catalog/deals";
 import { cookies } from "next/headers";
 import { STORE } from "@/config/store";
 import { fa } from "@/content/fa";
@@ -56,7 +57,18 @@ export async function addToCart(variantId: string, qty = 1): Promise<CartActionR
   const quantity = Math.max(1, Math.min(Math.floor(qty) || 1, STORE.maxQtyPerItem));
   const variant = await db.variant.findUnique({
     where: { id: variantId },
-    include: { inventory: true, product: { select: { status: true } } },
+    include: {
+      inventory: true,
+      product: {
+        select: {
+          status: true,
+          flashDeals: {
+            where: { isActive: true },
+            select: { percent: true, startsAt: true, endsAt: true, isActive: true },
+          },
+        },
+      },
+    },
   });
   if (!variant || !variant.isActive || variant.product.status !== "PUBLISHED")
     return result(await getCartId(), false, fa.cart.errors.notFound);
@@ -70,7 +82,7 @@ export async function addToCart(variantId: string, qty = 1): Promise<CartActionR
   });
   const wanted = (existing && !existing.savedForLater ? existing.quantity : 0) + quantity;
   const finalQty = Math.min(wanted, available, STORE.maxQtyPerItem);
-  const price = variant.salePrice ?? variant.price;
+  const price = effectivePrice(variant, activeDeal(variant.product.flashDeals)).price;
   await db.cartItem.upsert({
     where: { cartId_variantId: { cartId: cart.id, variantId } },
     update: { quantity: finalQty, savedForLater: false, priceAtAdd: price },

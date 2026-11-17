@@ -11,7 +11,10 @@ import { db } from "@/lib/db";
 import { availableQty, stockState } from "@/modules/catalog";
 import { getProductSummaries } from "@/modules/catalog/server";
 import { evaluateCoupon } from "./coupon";
-import { computeTotals } from "./pricing";
+import { computeTotals, countable } from "./pricing";
+import { bundleDiscount } from "./bundles";
+import { activeDeal, effectivePrice } from "@/modules/catalog/deals";
+import { activeBundleRules } from "@/modules/promotions/server";
 import { pickRecommendations, type Candidate } from "./recommend";
 import type { CartLine, CartNotice, CartView } from "./types";
 
@@ -32,6 +35,15 @@ const cartInclude = {
               name: true,
               status: true,
               category: { select: { icon: true } },
+              flashDeals: {
+                where: { isActive: true },
+                select: { percent: true, startsAt: true, endsAt: true, isActive: true },
+              },
+              images: {
+                select: { url: true },
+                orderBy: { sortOrder: "asc" as const },
+                take: 1,
+              },
             },
           },
         },
@@ -69,7 +81,8 @@ async function buildView(sessionId: string): Promise<CartView> {
     }
     const inv = v.inventory ?? { onHand: 0, reserved: 0, safetyStock: 0, lowStockThreshold: 3 };
     const available = availableQty(inv);
-    const unitPrice = v.salePrice ?? v.price;
+    const eff = effectivePrice(v, activeDeal(p.flashDeals));
+    const unitPrice = eff.price;
     let quantity = it.quantity;
     const updates: { quantity?: number; priceAtAdd?: number } = {};
     if (!it.savedForLater && available > 0 && quantity > available) {
@@ -97,8 +110,9 @@ async function buildView(sessionId: string): Promise<CartView> {
       name: p.name,
       variantLabel: attrs.length ? attrs.join("، ") : null,
       icon: p.category.icon ?? "coffee",
+      image: p.images[0]?.url ?? null,
       unitPrice,
-      oldUnitPrice: v.salePrice ? v.price : null,
+      oldUnitPrice: eff.oldPrice,
       priceAtAdd: it.priceAtAdd,
       quantity,
       available,
@@ -130,7 +144,8 @@ async function buildView(sessionId: string): Promise<CartView> {
       ? { code: cart.coupon.code }
       : { code: cart.coupon.code, error: fa.cart.couponErrors[r.reason] };
   }
-  const totals = computeTotals(lines, couponResult);
+  const bundle = bundleDiscount(lines.filter(countable), await activeBundleRules());
+  const totals = computeTotals(lines, couponResult, undefined, bundle.total);
 
   // پیشنهاد مکمل بر اساس قوانین مدیر (FR-REC-02 بخش قوانین)
   const productIds = active.map((l) => l.productId);

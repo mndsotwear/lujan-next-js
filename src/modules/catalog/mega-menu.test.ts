@@ -19,6 +19,7 @@ const prod = (o: Partial<ProductSummary>): ProductSummary => ({
   soldCount: 0,
   createdAt: new Date(0),
   specs: {},
+  flavors: [],
   price: 1000,
   oldPrice: null,
   stock: "in_stock",

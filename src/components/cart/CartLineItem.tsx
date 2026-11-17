@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { fa } from "@/content/fa";
 import { formatNumber } from "@/lib/format";
@@ -15,11 +16,15 @@ export function CartLineItem({ line, compact = false }: { line: CartLine; compac
     <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-5 py-4 max-sm:px-4">
       <Link
         href={`/products/${line.slug}`}
-        className={`grid ${size} rounded-ctl bg-surface-2 text-steel place-items-center`}
+        className={`relative grid ${size} rounded-ctl bg-surface-2 text-steel place-items-center overflow-hidden`}
         tabIndex={-1}
         aria-hidden
       >
-        <Icon name={line.icon} className="w-3/4" />
+        {line.image ? (
+          <Image src={line.image} alt="" fill sizes="96px" className="object-contain p-1" />
+        ) : (
+          <Icon name={line.icon} className="w-3/4" />
+        )}
       </Link>
       <div className="min-w-0">
         <Link

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeBanners, safeLink } from "./rules";
+import { activeBanners, safeLink, toPlacement } from "./rules";
 
 describe("بنر (D-048)", () => {
   const now = new Date("2026-11-04T10:00:00Z");
@@ -36,5 +36,14 @@ describe("بنر (D-048)", () => {
     expect(safeLink("//evil.com")).toBe(null);
     expect(safeLink("http://example.com")).toBe(null);
     expect(safeLink("")).toBe(null);
+  });
+});
+
+describe("toPlacement", () => {
+  it("فقط جایگاه‌های مجاز؛ بقیه اسلایدر", () => {
+    expect(toPlacement("side1")).toBe("side1");
+    expect(toPlacement("side2")).toBe("side2");
+    expect(toPlacement("evil")).toBe("hero");
+    expect(toPlacement(null)).toBe("hero");
   });
 });

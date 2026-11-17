@@ -9,6 +9,7 @@ export function computeTotals(
   lines: CartLine[],
   coupon: CouponResult | null,
   threshold: number | null = STORE.freeShippingThreshold,
+  bundles = 0,
 ): CartTotals {
   const active = lines.filter(countable);
   const subtotal = active.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
@@ -16,8 +17,9 @@ export function computeTotals(
     (s, l) => s + (l.oldUnitPrice ? (l.oldUnitPrice - l.unitPrice) * l.quantity : 0),
     0,
   );
-  const couponDiscount = coupon?.ok ? Math.min(coupon.discount, subtotal) : 0;
-  const total = subtotal - couponDiscount;
+  const bundleDiscount = Math.min(Math.max(0, bundles), subtotal);
+  const couponDiscount = coupon?.ok ? Math.min(coupon.discount, subtotal - bundleDiscount) : 0;
+  const total = subtotal - bundleDiscount - couponDiscount;
   // آستانه‌ی ارسال رایگان روی مبلغ پس از کد تخفیف سنجیده می‌شود؛ بدون آستانه فقط کد FREE_SHIPPING
   const byCoupon = !!(coupon?.ok && coupon.freeShipping);
   const byThreshold = threshold !== null && subtotal > 0 && total >= threshold;
@@ -27,6 +29,7 @@ export function computeTotals(
     subtotal,
     itemSavings,
     couponDiscount,
+    bundleDiscount,
     freeShipping,
     freeShippingGap: freeShipping || threshold === null ? 0 : Math.max(0, threshold - total),
     total,

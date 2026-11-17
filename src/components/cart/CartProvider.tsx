@@ -16,6 +16,8 @@ type Ctx = {
   setOpen: (v: boolean) => void;
   pending: boolean;
   message: { text: string; ok: boolean } | null;
+  /** پیام کوچک پس از افزودن (هر بار شناسه‌ی تازه تا دوباره نمایش داده شود) */
+  toast: { id: number; text: string; ok: boolean } | null;
   add: (
     variantId: string,
     qty?: number,
@@ -53,6 +55,7 @@ export function CartProvider({
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<Ctx["message"]>(null);
+  const [toast, setToast] = useState<Ctx["toast"]>(null);
 
   const run = useCallback(async (p: Promise<CartActionResult>, success?: string) => {
     try {
@@ -75,7 +78,15 @@ export function CartProvider({
       const keep = view.totals.couponDiscount
         ? { ok: true as const, discount: view.totals.couponDiscount, freeShipping: false }
         : null;
-      setView({ ...next, totals: computeTotals([...next.lines, ...next.saved], keep) });
+      setView({
+        ...next,
+        totals: computeTotals(
+          [...next.lines, ...next.saved],
+          keep,
+          undefined,
+          view.totals.bundleDiscount,
+        ),
+      });
       start(async () => {
         const ok = await run(p());
         if (!ok) setView((v) => (v === next ? before : v));
@@ -91,13 +102,22 @@ export function CartProvider({
       setOpen,
       pending,
       message,
+      toast,
+      // پس از افزودن، پنل سبد باز نمی‌شود؛ فقط پیام کوچک (مثل دیجی‌کالا)
       add: async (variantId, qty = 1, opts = {}) => {
-        const ok = await run(
-          actions.addToCart(variantId, qty),
-          opts.name ? fa.cart.added(opts.name) : undefined,
-        );
+        let text: string | undefined;
+        let ok = false;
+        try {
+          const r = await actions.addToCart(variantId, qty);
+          setView(r.view);
+          ok = r.ok;
+          text = r.message ?? (r.ok && opts.name ? fa.cart.added(opts.name) : undefined);
+        } catch {
+          text = fa.cart.errors.network;
+        }
+        setMessage(text ? { text, ok } : null);
+        if (text) setToast({ id: Date.now(), text, ok });
         if (ok) track("add_to_cart", { qty });
-        if (ok && opts.openDrawer !== false) setOpen(true);
         return ok;
       },
       setQty: (itemId, qty) =>
@@ -137,7 +157,7 @@ export function CartProvider({
       applyCoupon: (code) => run(actions.applyCoupon(code)),
       removeCoupon: () => void run(actions.removeCoupon()),
     }),
-    [view, open, pending, message, run, optimistic],
+    [view, open, pending, message, toast, run, optimistic],
   );
 
   return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;

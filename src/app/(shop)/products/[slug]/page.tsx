@@ -10,6 +10,9 @@ import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { RecentlyViewed } from "@/components/catalog/RecentlyViewed";
 import { WishlistButton } from "@/components/catalog/WishlistButton";
 import { RichText } from "@/components/RichText";
+import { BundleCard } from "@/components/catalog/BundleCard";
+import { Countdown } from "@/components/home/Countdown";
+import { dealEndFor, getBundleViews } from "@/modules/promotions/server";
 import { ProductCard } from "@/components/ProductCard";
 import { Rating } from "@/components/Rating";
 import { fa } from "@/content/fa";
@@ -21,8 +24,17 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };
 
+/** نشانی‌های فارسی (محصولات واقعی lujan.ir) گاهی کدشده به صفحه می‌رسند */
+function decodeSlug(slug: string): string {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const slug = decodeSlug((await params).slug);
   const data = await getProductPage(slug);
   if (!data) notFound(); // وضعیت ۴۰۴ واقعی قبل از شروع ارسال صفحه
   const p = data.product;
@@ -35,9 +47,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     p.summary ? `${p.summary} — ${generic}` : generic,
   );
   const image = p.images[0];
+  const inStock = p.stock !== "out" && p.price > 0;
   return {
     title: p.seoTitle || p.name,
     description,
+    // متاتگ‌های ترب و ایمالز برای خواندن قیمت و موجودی از صفحه
+    other: {
+      product_id: p.id,
+      product_name: p.name,
+      product_price: String(inStock ? p.price : 0),
+      ...(inStock && p.oldPrice ? { product_old_price: String(p.oldPrice) } : {}),
+      availability: inStock ? "instock" : "outofstock",
+    },
     alternates: { canonical: `/products/${slug}` },
     openGraph: {
       type: "website",
@@ -50,10 +71,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Props) {
-  const { slug } = await params;
+  const slug = decodeSlug((await params).slug);
   const data = await getProductPage(slug);
   if (!data) notFound();
   const { product: p, category, variants, reviews, questions, complements, related } = data;
+  const [dealEnd, bundles] = await Promise.all([dealEndFor(p.id), getBundleViews(p.id)]);
   const keySpecs = category.specSchema.filter((f) => p.specs[f.key] !== undefined).slice(0, 3);
   const variantViews = variants.map((v) => ({
     ...v,
@@ -114,6 +136,12 @@ export default async function ProductPage({ params }: Props) {
             </dl>
           )}
 
+          {dealEnd && (
+            <div className="rounded-card mb-3 flex flex-wrap items-center justify-between gap-2 bg-gradient-to-l from-[#c81e3a] to-[#ff4d4d] px-4 py-3 text-white">
+              <b className="text-sm">{fa.deals.title}</b>
+              <Countdown endsAt={dealEnd} />
+            </div>
+          )}
           <BuyBox
             variants={variantViews}
             notifyAction={requestStockNotification}
@@ -124,11 +152,13 @@ export default async function ProductPage({ params }: Props) {
           </div>
 
           <ul className="mt-4 grid gap-2 text-sm">
-            <li className="flex items-center gap-2">
-              <Icon name="shield" className="text-copper size-5" />
-              {p.warrantyMonths ? fa.product.warranty(p.warrantyMonths) : fa.product.noWarranty}
-              {p.warrantyNote ? ` — ${p.warrantyNote}` : ""}
-            </li>
+            {p.warrantyMonths ? (
+              <li className="flex items-center gap-2">
+                <Icon name="shield" className="text-copper size-5" />
+                {fa.product.warranty(p.warrantyMonths)}
+                {p.warrantyNote ? ` — ${p.warrantyNote}` : ""}
+              </li>
+            ) : null}
             <li className="flex items-center gap-2">
               <Icon name="return" className="text-copper size-5" />
               <Link href="/returns" className="underline-offset-4 hover:underline">
@@ -169,17 +199,28 @@ export default async function ProductPage({ params }: Props) {
                 </tr>
               ) : null;
             })}
-            <tr className="border-line border-b">
-              <th scope="row" className="text-steel w-[38%] px-4 py-3 text-start font-normal">
-                {fa.product.warrantyLabel}
-              </th>
-              <td className="px-4 py-3">
-                {p.warrantyMonths ? fa.product.warranty(p.warrantyMonths) : fa.product.noWarranty}
-              </td>
-            </tr>
+            {p.warrantyMonths ? (
+              <tr className="border-line border-b">
+                <th scope="row" className="text-steel w-[38%] px-4 py-3 text-start font-normal">
+                  {fa.product.warrantyLabel}
+                </th>
+                <td className="px-4 py-3">{fa.product.warranty(p.warrantyMonths)}</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </section>
+
+      {bundles.length > 0 && (
+        <section className="pt-8">
+          <h2 className="mb-4 text-xl font-bold">{fa.bundles.title}</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {bundles.map((b) => (
+              <BundleCard key={b.id} b={b} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section id="together" className="scroll-mt-40 pt-8">
         <h2 className="mb-4 text-xl font-bold">{fa.product.together}</h2>

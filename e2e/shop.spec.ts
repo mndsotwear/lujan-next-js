@@ -21,14 +21,18 @@ test("جستجو با مترادف: نسکافه، قهوه فوری پیدا م
 });
 
 test("محصول: داده‌ی ساختاریافته و افزودن به سبد", async ({ page }) => {
-  await page.goto("/products/tea-black-leaf-500");
+  // اولین محصول موجود دسته‌ی چای (محصولات واقعی lujan.ir نشانی فارسی دارند)
+  await page.goto("/categories/tea?instock=1");
+  await page.locator('main a[href^="/products/"]').first().click();
+  await page.waitForURL(/\/products\//);
+  const name = (await page.getByRole("heading", { level: 1 }).textContent())?.trim() ?? "";
   const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
   expect(ld.map((x) => JSON.parse(x)["@type"])).toContain("Product");
   await page.getByRole("button", { name: "افزودن به سبد" }).first().click();
-  await expect(page.getByRole("dialog")).toContainText("چای سیاه برگی");
+  await expect(page.getByText("به سبد افزوده شد")).toBeVisible();
   await page.goto("/cart");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("سبد خرید");
-  await expect(page.locator("main")).toContainText("چای سیاه برگی");
+  await expect(page.locator("main")).toContainText(name);
   await noHorizontalScroll(page);
 });
 

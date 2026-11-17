@@ -5,6 +5,10 @@
  */
 import type { SpecSchema } from "./specs";
 import type { ProductSummary } from "./types";
+import { FLAVORS, isFlavor } from "./flavors";
+
+/** فیلتر طعم در فهرست دسته؛ مثل یک مشخصه در specs نگه داشته می‌شود (taste=caramel,sweet) */
+export const TASTE_KEY = "taste";
 
 export const SORT_KEYS = ["bestselling", "newest", "cheapest", "expensive", "popular"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
@@ -70,6 +74,8 @@ export function parseListingParams(raw: RawParams, schema: SpecSchema): ListingP
         : vals.filter((v) => v === "1");
     if (allowed.length) specs[f.key] = allowed;
   }
+  const tastes = list(raw[TASTE_KEY]).filter(isFlavor);
+  if (tastes.length) specs[TASTE_KEY] = tastes;
   return {
     sort,
     page,
@@ -110,6 +116,11 @@ function matches(
     return false;
   for (const [key, values] of Object.entries(params.specs)) {
     if (key === exclude) continue;
+    if (key === TASTE_KEY) {
+      // هر کدام از طعم‌های انتخاب‌شده
+      if (!values.some((v) => (p.flavors ?? []).includes(v))) return false;
+      continue;
+    }
     const field = schema.find((f) => f.key === key);
     const v = p.specs[key];
     if (field?.type === "boolean") {
@@ -160,6 +171,15 @@ export function applyListing(
       }))
       .sort((a, b) => b.count - a.count),
   });
+  const tastePool = products.filter((p) => matches(p, params, schema, TASTE_KEY));
+  const tasteOptions = FLAVORS.map((f) => ({
+    value: f.slug,
+    label: f.label,
+    count: tastePool.filter((p) => (p.flavors ?? []).includes(f.slug)).length,
+    selected: params.specs[TASTE_KEY]?.includes(f.slug) ?? false,
+  })).filter((o) => o.count > 0 || o.selected);
+  if (tasteOptions.length)
+    facets.push({ key: TASTE_KEY, label: "طعم", type: "enum", options: tasteOptions });
   for (const f of schema) {
     if (!f.filterable) continue;
     const pool = products.filter((p) => matches(p, params, schema, f.key));

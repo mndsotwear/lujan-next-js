@@ -25,10 +25,12 @@
     "db:check": "tsx scripts/db-check.ts",
     "search:sync": "tsx scripts/search-sync.ts",
     "jobs:release": "tsx scripts/release-reservations.ts",
+    "jobs:abandoned": "tsx scripts/abandoned-carts.ts",
     "jobs:low-stock": "tsx scripts/low-stock-report.ts",
     "jobs:backup": "tsx scripts/backup.ts",
     "backup:restore": "tsx scripts/restore.ts",
-    "admin:create": "tsx scripts/create-admin.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "import:lujan": "tsx scripts/import-lujan.ts"
   },
   "dependencies": {
     "@fontsource-variable/vazirmatn": "^5.2.0",
